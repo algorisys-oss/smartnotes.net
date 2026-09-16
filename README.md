@@ -7,10 +7,12 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
-> **Status: Milestone 3 done.** Notes live on the desktop as their own borderless
-> windows, save themselves as you type, and come back where you left them. The
-> manager lists and searches them and holds the archive. 142 green tests.
-> Milestone 4 adds colours, pinning and packaging. Start at [LOOP.md](LOOP.md).
+> **Status: Milestone 4 in progress.** Notes live on the desktop as their own
+> borderless windows — draggable, resizable, pinnable, recolourable — save
+> themselves as you type, and come back where you left them. The manager lists
+> and searches them and holds the archive. Settings, keyboard shortcuts and
+> packaging for six runtime identifiers are in. 172 green tests. Start at
+> [LOOP.md](LOOP.md).
 
 ## Documentation
 
@@ -158,6 +160,27 @@ scaffolds v2. Test projects are `OutputType=Exe` because xunit v3 requires it.
 
 Data tests create a real SQLite file in a temp directory and delete it afterwards.
 If a run is interrupted you may find strays under `$TMPDIR`; they are harmless.
+
+## Packaging
+
+    scripts/package.sh linux-x64
+
+builds a self-contained release and prints **the archive path on stdout and
+nothing else** — build logs go to stderr, so a caller can capture the path with
+`$(...)`. The six runtime identifiers are `linux-x64`, `linux-arm64`, `win-x64`,
+`win-arm64`, `osx-x64`, `osx-arm64`; Windows gets a `.zip`, everything else a
+`.tar.gz`, under `artifacts/`.
+
+Self-contained, so there is no .NET runtime to install first — the archive is
+about 45 MB and unpacks to a folder you run `SmartNotes.App` from. Pass
+`--publish-only` to get the unarchived folder instead, which is what a `.deb` or
+an `.app` bundle would build on.
+
+**Not single-file.** Avalonia's native libraries want to be real files on disk,
+and a sticky-notes app is not worth the debugging that hiding them invites.
+
+The version comes from `VersionPrefix` in `Directory.Build.props`, read by
+`scripts/version.sh`. That is the only place it is written down.
 
 ## Where SmartNotes keeps your files
 

@@ -59,6 +59,20 @@ scripts/dev-start.sh              # the same in Debug, so F12 developer tools ex
 Use `--sandbox` before touching the schema. Testing a migration against your own
 week-old notes is how notes get lost.
 
+### Packaging
+
+`scripts/package.sh <rid>` builds a self-contained release for one of six runtime
+identifiers and **prints the artifact path on stdout and nothing else** — build
+logs go to stderr, because callers capture the path with `$(...)`. Keep it that
+way, and add new packaging (a `.deb`, an `.app`) by calling it with
+`--publish-only` rather than writing a second `dotnet publish`.
+
+Releases are **not** single-file: Avalonia's native libraries want to be real
+files on disk.
+
+`scripts/version.sh` is the only reader of the version, and `VersionPrefix` in
+`Directory.Build.props` the only place it is written.
+
 ## Architecture
 
 Dependencies run one way and nothing points back:
