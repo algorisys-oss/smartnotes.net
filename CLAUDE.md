@@ -27,10 +27,11 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 3, done.** The manager lists notes, searches them,
-and holds the archive; notes live on the desktop as borderless windows, autosaved
-as you type and restored where they were left. 142 green tests. Milestone 4 is
-colours, pinning, settings and packaging — then Milestone 5's timer and links.
+**The project is at Milestone 4, mostly done.** Notes are draggable, resizable,
+pinnable and recolourable; settings, theme and keyboard shortcuts are in; and
+`scripts/package.sh` builds a self-contained release for six runtime identifiers.
+172 green tests. What is left in Milestone 4: a settings UI (the service exists,
+nothing exposes it), and CI. Then Milestone 5's timer and links.
 
 `origin` is <https://github.com/algorisys-oss/smartnotes.net>, public.
 

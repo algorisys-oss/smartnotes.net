@@ -391,6 +391,18 @@ Colours, always-on-top, settings and theme, keyboard shortcuts, the empty state,
 and packaging for the three platforms. MMF 4–5 and 8. The app stops being a
 prototype here.
 
+Done: the colour menu and pin button, `Topmost` actually following the note,
+`SettingsService` over its own repository contract, the default-colour and theme
+settings, Ctrl+N / Ctrl+P / Ctrl+W / Escape, the manager's empty states, and
+`scripts/package.sh` for all six runtime identifiers — verified by unpacking the
+linux-x64 archive and watching it start.
+
+Still open: **a settings window.** The service is there and tested; nothing in
+the UI lets anyone change a setting yet, so the default colour and the theme can
+only be set by editing the database. And **CI** — the suite runs headless and
+needs no display, so a workflow that builds, tests and format-checks on every
+push is straightforward and not yet written.
+
 ### Milestone 5 — Dynamic notes
 
 The stream timer and hyperlinks, designed in "Review: dynamic notes" above.
