@@ -428,11 +428,77 @@ inside it, because the body is an editable `TextBox` and making it render runs o
 formatting is a far larger change than links are worth. Labelled links still wait
 on Markdown in Milestone 6.
 
-### Milestone 6 — After the MMF
+### Milestone 6 — Rich text and a tray icon
 
-Not scheduled, kept so they are not re-argued: rich text or Markdown, images,
-reminders and alarms, tags and colour-as-category, a tray icon, note stacking and
-grouping, export to Markdown or PDF, optional sync, global hotkey for a new note.
+The last one, and **not started** — it is a separate session's work. Two things,
+chosen over the seven others that were on this list:
+
+#### Rich text
+
+The note body is an editable `TextBox`, which draws plain text and nothing else.
+That is the whole problem, and the approach decides how much else has to move.
+
+**Recommended: Markdown in `Content`, rendered for display.** The note keeps
+storing plain text, which means:
+
+- **No schema change and no migration.** `Content` is already `TEXT`.
+- **`SearchAsync` keeps working.** A `LIKE` over Markdown still finds the words;
+  a binary or XML rich-text blob would break search and need FTS or a second
+  stored plain-text column.
+- **Export stays free**, and the "one SQLite file you could copy to a USB stick"
+  goal survives — the file is still readable in any SQL browser.
+- It composes with Milestone 5's links rather than replacing them: labelled links
+  (`[the docs](https://…)`) are the Markdown feature that was deferred to here.
+
+The shape that fits this codebase: display through a `SelectableTextBlock` whose
+`Inlines` are built from the parsed Markdown, and swap to the existing `TextBox`
+to edit — either on click, or with an edit/preview toggle on the note. Parsing
+belongs in Core as a pure function with its own tests, the way `LinkScanner` is;
+rendering inlines belongs in the app. A subset is enough and a subset is the
+point: bold, italic, `code`, headings, bullets, links. Do not pull in a rendering
+engine for a sticky note.
+
+Two things to check before committing to it: whether `SelectableTextBlock`'s
+inlines can carry a click handler for a link (Milestone 5's link chips may still
+be the better interaction), and how editing feels when the note is a couple of
+hundred words — a swap that loses the caret position will be noticed immediately.
+
+#### A tray icon
+
+This app is meant to run all day, and when every note is closed and the manager
+is shut there is currently nothing left to click. The tray is where it should
+live: new note, show and hide all notes, open the manager, quit.
+
+`Avalonia.Controls.TrayIcon` and `NativeMenu` exist in Avalonia 12 — checked, not
+assumed — with `TrayIcon.Menu`, `Icon`, `ToolTipText`, `IsVisible` and a
+`TrayIcons` attached property on `Application`. It needs an icon asset, which the
+project does not have yet: the app ships with no icon at all today, so that is
+part of this.
+
+`ShutdownMode` is currently `OnMainWindowClose`. With a tray icon that is wrong —
+closing the manager should leave the app running — so it becomes
+`OnExplicitShutdown`, and quitting becomes a tray menu item. Whatever changes it
+must keep the shutdown flush: `AppServices.DisposeAsync` is what writes the notes
+still sitting in a debounce, and losing that would lose the last thing typed.
+
+### Parked, with the reason
+
+None of these is an oversight:
+
+- **Sync** is rejected rather than deferred. "No account, no sync and no network"
+  is a product goal, not a gap — it is what lets the whole app be one file.
+- **Export to Markdown or PDF.** Nearly free once the body *is* Markdown, so it
+  belongs after rich text rather than beside it.
+- **Images.** A sticky note is for a sentence you will act on this afternoon.
+- **Reminders and alarms.** The timer covers the case this app was asked for; one
+  that fires while the app is closed needs OS scheduling, which is a different
+  kind of program.
+- **Tags, note stacking and grouping.** Colour is already a category and the
+  manager searches; neither earns its complexity at the size a desktop reaches.
+- **A global hotkey for a new note.** Genuinely useful for streaming and
+  genuinely unreliable: X11, Wayland, Win32 and macOS each register one
+  differently and Wayland mostly refuses without a desktop portal. The tray icon
+  gets a note up in two clicks without asking the OS for anything.
 
 ## Near-term order
 
