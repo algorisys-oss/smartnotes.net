@@ -1,0 +1,141 @@
+# Builds a release for every runtime identifier on a tag, then proves the Windows
+# and macOS archives actually run on Windows and macOS.
+#
+# That second part is the point. scripts/package.sh cross-publishes happily from
+# Linux, which shows the files were produced - not that the binary starts once
+# they are on the machine they were built for.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, linux-arm64, win-x64, win-arm64, osx-x64, osx-arm64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Package
+        id: package
+        run: echo "path=$(scripts/package.sh ${{ matrix.rid }})" >> "$GITHUB_OUTPUT"
+
+      # Uploaded whole. upload-artifact drops the executable bit, so the runnable
+      # files have to stay inside the .tar.gz or .zip rather than go up loose.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yappynotes-${{ matrix.rid }}
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+
+          # These live only long enough for the smoke jobs to download them and
+          # for the release job to publish them. After that the archives are on
+          # the release itself.
+          retention-days: 1
+
+  # YappyNotes is a desktop app and a runner has no display, so the proof that it
+  # runs is that it answers an argument and exits. That is what --version is for.
+  smoke-linux:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: yappynotes-linux-x64
+
+      - name: Run the packaged app
+        run: |
+          set -euo pipefail
+          tar -xzf yappynotes-*-linux-x64.tar.gz
+          ./YappyNotes.App --version | tee out.txt
+          grep -q '^YappyNotes [0-9]\+\.[0-9]\+\.[0-9]\+' out.txt
+
+  smoke-macos:
+    needs: package
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: yappynotes-osx-arm64
+
+      - name: Run the packaged app
+        run: |
+          set -euo pipefail
+          tar -xzf yappynotes-*-osx-arm64.tar.gz
+          chmod +x ./YappyNotes.App
+          ./YappyNotes.App --version | tee out.txt
+          grep -q '^YappyNotes [0-9]\+\.[0-9]\+\.[0-9]\+' out.txt
+
+  smoke-windows:
+    needs: package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: yappynotes-win-x64
+
+      # The exit code, not the output. Windows gives a WinExe no console of its
+      # own, so what Console.WriteLine reaches from a runner is not something to
+      # rely on - while the exit code is. Zero means the .NET runtime loaded,
+      # managed code ran and the argument was understood, which is the question
+      # this job exists to answer.
+      - name: Run the packaged app
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = (Get-Item yappynotes-*-win-x64.zip).FullName
+          Expand-Archive -Path $zip -DestinationPath .
+          & .\YappyNotes.App.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "--version exited $LASTEXITCODE" }
+
+          # An argument it does not know exits 2. A binary that could not start at
+          # all would not manage to disagree with us.
+          & .\YappyNotes.App.exe --verison
+          if ($LASTEXITCODE -ne 2) { throw "an unknown argument exited $LASTEXITCODE, expected 2" }
+
+  release:
+    # Only once every archive has been shown to run on its own OS.
+    needs: [smoke-linux, smoke-macos, smoke-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      # A tag with a suffix - v0.2.0-beta.1 - is a prerelease, so it does not
+      # take the "latest" slot people land on. Decided from the tag rather than
+      # by hand, because the flag defaults to false and nothing else would
+      # contradict it.
+      - name: Is this a prerelease?
+        id: kind
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          if [[ "$tag" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          prerelease: ${{ steps.kind.outputs.prerelease }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true

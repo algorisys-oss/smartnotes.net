@@ -316,6 +316,38 @@ honour it** when Milestone 1 writes it, or `--sandbox` silently opens the real
 Regenerating the solution needs `dotnet new sln --format sln`: the .NET 10 SDK
 defaults to the newer `.slnx`, and the docs and scripts all say `yappynotes.sln`.
 
+## "Ship it"
+
+When the reader says **ship it** — or **deploy it**, or **publish it** — that one
+phrase means all of this, in order:
+
+1. **Be on `main` and green.** Merge whatever branch the work is on the usual way
+   (`Merge <branch-name>`), then `dotnet build`, `dotnet test` and
+   `dotnet format --verify-no-changes` on the solution. Never release from a red
+   suite or a dirty tree, and never from a branch.
+2. **Bump `VersionPrefix` in `Directory.Build.props`.** **Minor** unless they say
+   otherwise. That is the only place a version is written: `scripts/version.sh`
+   reads it, the packaging script names the archives from it, and the status bar
+   in the manager window shows it — so there is nothing else to keep in step.
+3. **Write that version's notes at the top of `CHANGELOG.md`**, in the voice the
+   commit messages use: what changed and why it matters to somebody using it, not
+   a list of files or a list of merges.
+4. **Update the docs to match what now exists.** The status block in `README.md`
+   and in this file, the test count, and any milestone that has moved. A release
+   is the moment those stop being approximately true.
+5. **Commit, and push `main` to `origin`.**
+6. **Push the `v<version>` tag, which is what builds the release.**
+   `release.yml` packages all six runtime identifiers, **runs the packaged binary
+   on Linux, Windows and macOS runners**, and publishes only once each has
+   started and answered `--version`. Never build the six by hand and never upload
+   them by hand: a release nobody watched start on its own OS is the thing that
+   workflow exists to prevent.
+7. **Check the run finished and the release has its six archives.** A tag that
+   built nothing is worse than no tag, because it looks like a release.
+
+A tag with a suffix — `v0.2.0-beta.1` — is published as a prerelease and does not
+take the "latest" slot. That is decided from the tag, not by hand.
+
 ## Conventions
 
 **This project is test-driven.** No production code without a failing test that
