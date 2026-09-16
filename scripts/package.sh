@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a release of SmartNotes for one runtime identifier.
+# Build a release of YappyNotes for one runtime identifier.
 #
 #   scripts/package.sh linux-x64
 #   scripts/package.sh osx-arm64 --publish-only
@@ -27,7 +27,7 @@ rm -rf "$staging"
 # Self-contained so there is no runtime to install first. Not single-file:
 # Avalonia's native libraries want to be real files on disk, and a note-taking
 # app is not worth the debugging that hiding them invites.
-dotnet publish "$root/src/SmartNotes.App/SmartNotes.App.csproj" \
+dotnet publish "$root/src/YappyNotes.App/YappyNotes.App.csproj" \
   --configuration Release \
   --runtime "$rid" \
   --self-contained true \
@@ -40,7 +40,7 @@ if [[ $publish_only -eq 1 ]]; then
 fi
 
 mkdir -p "$root/artifacts"
-archive="$root/artifacts/smartnotes-$version-$rid"
+archive="$root/artifacts/yappynotes-$version-$rid"
 
 if [[ "$rid" == win-* ]]; then
   archive="$archive.zip"

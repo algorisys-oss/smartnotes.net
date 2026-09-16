@@ -5,7 +5,7 @@ code in this repository.
 
 ## What this is
 
-SmartNotes is a cross-platform desktop sticky notes app — C# / .NET 10, Avalonia
+YappyNotes is a cross-platform desktop sticky notes app — C# / .NET 10, Avalonia
 UI, SQLite — where each note is its own always-there window rather than a row in
 a list. MVVM, with a repository behind the services.
 
@@ -27,39 +27,47 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 5, done.** Notes now do something: a note can carry
-a stream timer that counts down or up, and the links in its text are offered
-beside it. 287 green tests.
+**The project is at Milestone 5, done; Milestone 6 is scoped but not started.**
+All eight MMF items hold — notes are their own draggable, resizable, pinnable,
+recolourable windows, autosaved and restored; the manager lists, searches and
+archives; there is a settings window, keyboard shortcuts, CI and packaging for
+six runtime identifiers. On top of that, a note can carry a stream timer that
+counts down or up, and the links in its text are offered beside it. 346 green
+tests.
 
-**Milestone 4 before it — the MMF — is complete.** All eight MMF
-items hold: notes are their own draggable, resizable, pinnable, recolourable
-windows, autosaved and restored; the manager lists, searches and archives; there
-is a settings window, keyboard shortcuts, CI, and packaging for six runtime
-identifiers. 186 green tests.
+**Milestone 6 is rich text and a tray icon**, and it is a separate session's
+work. `docs/plan.md` has the scope, the recommended approach and what was checked
+already — read that section before starting, and in particular the argument for
+keeping Markdown *in* `Content` rather than storing a rich-text blob: it is what
+keeps search, export and the single-file goal intact. Seven other ideas are
+parked there with their reasons, sync among them; it is rejected rather than
+deferred.
 
-Next is **Milestone 5**: the stream timer and hyperlinks, designed in "Review:
-dynamic notes" in `docs/plan.md`. Read that before starting — the timer's shape
-is already decided and the reasons matter.
+**The app was called SmartNotes until it was renamed to YappyNotes.** Nothing in
+the code carries the old name. `UserPaths.PreviousAppFolderNames` is the one
+deliberate exception: it is how notes kept under the old name are adopted on the
+first start afterwards. Append to that list if it is ever renamed again — an
+entry removed is somebody's notes left behind.
 
-`origin` is <https://github.com/algorisys-oss/smartnotes.net>, public.
+`origin` is <https://github.com/algorisys-oss/yappynotes>, public.
 
 ## Commands
 
 ```bash
-dotnet build smartnotes.sln
-dotnet test smartnotes.sln
-dotnet format smartnotes.sln
+dotnet build yappynotes.sln
+dotnet test yappynotes.sln
+dotnet format yappynotes.sln
 
 # One project's tests, one class, one test
-dotnet test tests/SmartNotes.Core.Tests
-dotnet test smartnotes.sln --filter "FullyQualifiedName~AutoSaveServiceTests"
-dotnet test smartnotes.sln --filter "FullyQualifiedName~AutoSaveService_ClosingANoteMidDebounce_StillWrites"
+dotnet test tests/YappyNotes.Core.Tests
+dotnet test yappynotes.sln --filter "FullyQualifiedName~AutoSaveServiceTests"
+dotnet test yappynotes.sln --filter "FullyQualifiedName~AutoSaveService_ClosingANoteMidDebounce_StillWrites"
 
 # The fast tests, watched - keep this running while working
-dotnet watch test --project tests/SmartNotes.Core.Tests
+dotnet watch test --project tests/YappyNotes.Core.Tests
 
 # Run the app
-dotnet run --project src/SmartNotes.App/SmartNotes.App.csproj
+dotnet run --project src/YappyNotes.App/YappyNotes.App.csproj
 scripts/dev-start.sh              # the same in Debug, so F12 developer tools exist
                                   # --watch to restart on a change
                                   # --sandbox for a throwaway database under artifacts/
@@ -99,16 +107,16 @@ Dependencies run one way and nothing points back:
      └──────────────────────────────┘
        (composition root only)
 
-- **`SmartNotes.Core`** — the domain and the policy. `Note`, `NoteColor`,
+- **`YappyNotes.Core`** — the domain and the policy. `Note`, `NoteColor`,
   `AppSettings`, `INoteRepository`, `NoteService`, `AutoSaveService`,
   `SettingsService`, `UserPaths`. References nothing but the BCL. Most tests live
   here, and new logic belongs here unless it cannot.
-- **`SmartNotes.Data`** — `SqliteNoteRepository`, `NoteDatabase` (the connection
+- **`YappyNotes.Data`** — `SqliteNoteRepository`, `NoteDatabase` (the connection
   factory — not named `SqliteConnectionFactory`, because Microsoft.Data.Sqlite
   has an internal type by that name and the collision compiles into a baffling
   "inaccessible due to its protection level"), and `Migrator`. **The only project that contains SQL.** A query anywhere else is a
   bug, not a shortcut.
-- **`SmartNotes.ViewModels`** — `ManagerViewModel`, `NoteViewModel`, and
+- **`YappyNotes.ViewModels`** — `ManagerViewModel`, `NoteViewModel`, and
   `IWindowManager`. Ticking belongs here too: `TimeProvider.CreateTimer` is BCL,
   so a view-model can drive a once-a-second repaint without reaching for
   `DispatcherTimer` — but its callback lands on a thread-pool thread, so getting
@@ -117,7 +125,7 @@ Dependencies run one way and nothing points back:
   It is absent on purpose: it is what keeps the view-models testable with `new`
   and no UI thread. If you need a type from Avalonia here, you need an abstraction
   instead.
-- **`SmartNotes.App`** — Avalonia views, the `IWindowManager` implementation, and
+- **`YappyNotes.App`** — Avalonia views, the `IWindowManager` implementation, and
   the bootstrap. The one place that sees every layer, because it wires them.
 
 `UserPaths.Data` resolves the per-OS location of `notes.db`. Never build that path
@@ -280,7 +288,7 @@ why the version is uniform rather than per-project. Add a test project by copyin
 an existing `.csproj` — `dotnet new xunit` still scaffolds v2. Test projects are
 `OutputType=Exe`, which xunit v3 requires.
 
-**`NoteRepositoryContract` in `tests/SmartNotes.TestKit` is the definition of an
+**`NoteRepositoryContract` in `tests/YappyNotes.TestKit` is the definition of an
 `INoteRepository`**, derived once for the in-memory fake and once for SQLite so
 the two cannot drift. A new repository method goes in the contract first, and both
 implementations answer it. Two of its tests exist only to keep the fake honest:
@@ -291,8 +299,8 @@ handed back — must change nothing. `TestKit` is a library, not a test project;
 **Two guards enforce the architecture, and they have teeth** — both were verified
 by breaking the rule on purpose and watching them fail:
 
-- `SmartNotes.Core.Tests/ArchitectureTests` — Core references nothing but the BCL.
-- `SmartNotes.ViewModels.Tests/ArchitectureTests` — ViewModels reference no
+- `YappyNotes.Core.Tests/ArchitectureTests` — Core references nothing but the BCL.
+- `YappyNotes.ViewModels.Tests/ArchitectureTests` — ViewModels reference no
   Avalonia assembly, and nothing beyond CommunityToolkit.Mvvm.
 
 They read `Assembly.GetReferencedAssemblies()`, which lists what the compiled code
@@ -301,12 +309,12 @@ package will not fail them, and a used one will, which is the distinction worth
 having. If one fails, its message names the offending assembly; do not make it
 pass by widening the allow-list without saying why in the commit.
 
-`scripts/dev-start.sh --sandbox` sets `SMARTNOTES_DATA_DIR`. **`UserPaths` has to
+`scripts/dev-start.sh --sandbox` sets `YAPPYNOTES_DATA_DIR`. **`UserPaths` has to
 honour it** when Milestone 1 writes it, or `--sandbox` silently opens the real
 `notes.db` and the flag becomes a lie at the worst moment.
 
 Regenerating the solution needs `dotnet new sln --format sln`: the .NET 10 SDK
-defaults to the newer `.slnx`, and the docs and scripts all say `smartnotes.sln`.
+defaults to the newer `.slnx`, and the docs and scripts all say `yappynotes.sln`.
 
 ## Conventions
 
@@ -331,11 +339,11 @@ commit. Never commit a red suite.
 **Every finished feature is committed and pushed.** Not at the end of a session
 and not in a batch: a feature that is implemented, green and formatted gets its
 commit and reaches `origin` before the next one starts. "Green" means the full
-`dotnet test smartnotes.sln`, not the project you were working in. A feature that
+`dotnet test yappynotes.sln`, not the project you were working in. A feature that
 is half-done at the end of a session stays uncommitted rather than being pushed
 behind a flag.
 
-`origin` is <https://github.com/algorisys-oss/smartnotes.net> — public, so
+`origin` is <https://github.com/algorisys-oss/yappynotes> — public, so
 anything committed is published. Nothing secret goes in the repository; there is
 no `.env` here and a new environment variable belongs in an `.env.example` with a
 placeholder value.
