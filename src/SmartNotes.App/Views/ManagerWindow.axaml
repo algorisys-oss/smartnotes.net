@@ -5,10 +5,23 @@
         Width="360" Height="520"
         MinWidth="280" MinHeight="320">
 
-    <!-- Milestone 0: a window that opens and says nothing. The note list, the
-         search box and the new-note button arrive in Milestone 3. -->
-    <TextBlock Text="SmartNotes"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center"
-               Opacity="0.4" />
+    <!-- Milestone 2 needs one way to make a note. The list, the search box and
+         the archive arrive in Milestone 3. -->
+    <DockPanel Margin="16">
+        <Button DockPanel.Dock="Top"
+                x:Name="NewNoteButton"
+                Click="OnNewNoteClicked"
+                Content="New note"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Padding="12,8" />
+
+        <TextBlock x:Name="Hint"
+                   Text="Your notes stay open on the desktop."
+                   TextWrapping="Wrap"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   TextAlignment="Center"
+                   Opacity="0.45" />
+    </DockPanel>
 </Window>
