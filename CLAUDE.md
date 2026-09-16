@@ -224,6 +224,17 @@ clamp.
 **The timer's settings show only while it is stopped** (`CanEdit`). Moving the
 finish line halfway through a countdown is a way to be confused.
 
+**Setting a countdown's length clears what has already run.** "10 minutes" means
+a ten-minute break, not ten minutes minus what you used — keeping the banked time
+made a preset button look like it had been ignored. Length is minutes *and*
+seconds; zero of both falls back to the shortest length rather than a countdown
+that is over before it starts.
+
+**The active note differs by its edge only.** `NoteWindow.MarkActive` darkens and
+thickens the border on `Activated`. Do not repaint the paper — a desktop of notes
+changing colour as focus moves is a flicker — and do not make it touch the note,
+because clicking between windows must cost no disk write (`FocusedNoteTests`).
+
 **Links are offered beside a note, not inside it.** The body is an editable
 `TextBox`, which draws plain text and nothing else. `LinkScanner`'s allow-list —
 http, https, mailto — is checked when the link is found *and* again in
