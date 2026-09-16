@@ -16,6 +16,8 @@ Three files carry the project and they do not overlap:
 - **[LOOP.md](LOOP.md)** — how we build it. **This project is test-driven; read
   LOOP.md before writing code, every session.**
 - **[README.md](README.md)** — how to run it.
+- **[TODO.md](TODO.md)** — noticed since, not scheduled. Add to it rather than
+  letting an idea live in a commit message; do not work from it without asking.
 
 [docs/sticky-notes-architecture.pdf](docs/sticky-notes-architecture.pdf) is the
 original whiteboard drawing and has no text layer, so it cannot be read by

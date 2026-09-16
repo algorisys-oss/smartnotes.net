@@ -18,6 +18,7 @@ repository over SQLite.
 | --- | --- |
 | [docs/plan.md](docs/plan.md) | What we are building, the architecture review, the milestones |
 | [LOOP.md](LOOP.md) | How we build it — the TDD loop and its rules |
+| [TODO.md](TODO.md) | Noticed since the plan was written; not scheduled yet |
 | [docs/sticky-notes-architecture.md](docs/sticky-notes-architecture.md) | The original whiteboard design, transcribed |
 | [docs/sticky-notes-architecture.pdf](docs/sticky-notes-architecture.pdf) | The whiteboard drawing itself |
 | [CLAUDE.md](CLAUDE.md) | Conventions, for Claude Code and for people |
