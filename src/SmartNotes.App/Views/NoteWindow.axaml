@@ -130,133 +130,149 @@
                     Padding="8,4" />
         </Grid>
 
+        <!-- The bar stays to the count and its transport. Everything you set
+             rather than press lives in a flyout, because a note is 280 pixels
+             wide by default and a label, a direction toggle, four presets and a
+             minutes-and-seconds pair cannot share a line with it - they were
+             clipped to unreadable stumps when they tried. A flyout is not bound
+             by the note's width, so it fits at any size. -->
         <Border Grid.Row="1"
                 x:Name="TimerBar"
                 IsVisible="{Binding HasTimer}"
                 Padding="8,6"
                 BorderBrush="#22000000"
                 BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto"
+            <Grid ColumnDefinitions="*,Auto"
                   RowDefinitions="Auto,Auto"
                   DataContext="{Binding Timer}">
 
-                <TextBox Grid.Column="0"
-                         x:Name="TimerLabel"
-                         Text="{Binding Label}"
-                         PlaceholderText="Label"
-                         Foreground="#1A1A1A"
-                         Opacity="0.75"
-                         FontSize="12"
-                         MinWidth="54"
-                         Padding="2,0"
-                         VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           x:Name="TimerLabel"
+                           Text="{Binding Label}"
+                           Foreground="#1A1A1A"
+                           Opacity="0.65"
+                           FontSize="11"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Bottom" />
 
-                <TextBlock Grid.Column="1"
+                <TextBlock Grid.Row="1" Grid.Column="0"
                            x:Name="TimerDisplay"
                            Text="{Binding Display}"
                            Foreground="{Binding HasFinished, Converter={x:Static app:FinishedBrush.Instance}}"
-                           FontSize="24"
+                           FontSize="26"
                            FontWeight="SemiBold"
-                           Margin="8,0,0,0"
-                           VerticalAlignment="Center" />
+                           VerticalAlignment="Top" />
 
-                <Button Grid.Column="2"
-                        x:Name="TimerStart"
-                        Content="&#x25B6;"
-                        ToolTip.Tip="Start"
-                        IsVisible="{Binding !IsRunning}"
-                        Command="{Binding StartCommand}"
-                        Padding="6,2" />
+                <StackPanel Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
+                            Orientation="Horizontal"
+                            Spacing="2"
+                            VerticalAlignment="Center">
 
-                <Button Grid.Column="3"
-                        x:Name="TimerPause"
-                        Content="&#x23F8;"
-                        ToolTip.Tip="Pause"
-                        IsVisible="{Binding IsRunning}"
-                        Command="{Binding PauseCommand}"
-                        Padding="6,2" />
+                    <Button x:Name="TimerStart"
+                            Content="&#x25B6;"
+                            ToolTip.Tip="Start"
+                            IsVisible="{Binding !IsRunning}"
+                            Command="{Binding StartCommand}"
+                            Padding="6,3" />
 
-                <Button Grid.Column="4"
-                        x:Name="TimerRestart"
-                        Content="&#x21BB;"
-                        ToolTip.Tip="Start again from the top"
-                        Command="{Binding RestartCommand}"
-                        Padding="6,2" />
+                    <Button x:Name="TimerPause"
+                            Content="&#x23F8;"
+                            ToolTip.Tip="Pause"
+                            IsVisible="{Binding IsRunning}"
+                            Command="{Binding PauseCommand}"
+                            Padding="6,3" />
 
-                <Button Grid.Column="5"
-                        x:Name="TimerReset"
-                        Content="&#x23F9;"
-                        ToolTip.Tip="Stop and put it back to the top"
-                        Command="{Binding ResetCommand}"
-                        Padding="6,2" />
+                    <Button x:Name="TimerRestart"
+                            Content="&#x21BB;"
+                            ToolTip.Tip="Start again from the top"
+                            Command="{Binding RestartCommand}"
+                            Padding="6,3" />
 
-                <WrapPanel Grid.Row="1" Grid.ColumnSpan="6"
-                           x:Name="TimerEditRow"
-                           Orientation="Horizontal"
-                           Margin="0,4,4,0"
-                           IsVisible="{Binding CanEdit}">
+                    <Button x:Name="TimerReset"
+                            Content="&#x23F9;"
+                            ToolTip.Tip="Stop and put it back to the top"
+                            Command="{Binding ResetCommand}"
+                            Padding="6,3" />
 
-                    <Button x:Name="TimerDirectionToggle"
-                            Margin="0,0,3,0"
-                            Command="{Binding ToggleDirectionCommand}"
-                            ToolTip.Tip="Count down, or count up"
-                            FontSize="11"
-                            Padding="6,1"
-                            Content="{Binding IsCountingDown, Converter={x:Static app:DirectionLabel.Instance}}" />
+                    <Button x:Name="TimerSettingsButton"
+                            Content="&#x2026;"
+                            ToolTip.Tip="Set the label, length and direction"
+                            IsEnabled="{Binding CanEdit}"
+                            Padding="6,3">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel x:Name="TimerSettings" Width="268" Spacing="10">
 
-                    <ItemsControl ItemsSource="{Binding DurationPresets}"
-                                  IsVisible="{Binding IsCountingDown}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="3" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="x:Int32">
-                                <Button FontSize="11"
-                                        Padding="6,1"
-                                        Content="{Binding}"
-                                        ToolTip.Tip="Minutes"
-                                        Command="{Binding $parent[ItemsControl].((vm:NoteTimerViewModel)DataContext).SetDurationCommand}"
-                                        CommandParameter="{Binding}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="Label" FontWeight="SemiBold" FontSize="11" />
+                                        <TextBox x:Name="TimerLabelBox"
+                                                 Text="{Binding Label}"
+                                                 PlaceholderText="Back in"
+                                                 FontSize="12" />
+                                    </StackPanel>
 
-                    <!-- Minutes and seconds separately: a break is not always a
-                         whole number of minutes, and a single "minutes" box
-                         cannot say 2:30. -->
-                    <NumericUpDown x:Name="TimerMinutes"
-                                   Value="{Binding DurationMinutes}"
-                                   IsVisible="{Binding IsCountingDown}"
-                                   ToolTip.Tip="Minutes"
-                                   Minimum="0"
-                                   Maximum="600"
-                                   Increment="1"
-                                   FormatString="0"
-                                   FontSize="11"
-                                   Width="96"
-                                   Margin="3,0,0,0"
-                                   ShowButtonSpinner="True" />
+                                    <Button x:Name="TimerDirectionToggle"
+                                            Command="{Binding ToggleDirectionCommand}"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            FontSize="11"
+                                            Content="{Binding IsCountingDown, Converter={x:Static app:DirectionLabel.Instance}}" />
 
-                    <TextBlock Text=":"
-                               IsVisible="{Binding IsCountingDown}"
-                               Foreground="#1A1A1A"
-                               VerticalAlignment="Center"
-                               Margin="3,0" />
+                                    <StackPanel x:Name="TimerLengthSection"
+                                                Spacing="5"
+                                                IsVisible="{Binding IsCountingDown}">
+                                        <TextBlock Text="How long" FontWeight="SemiBold" FontSize="11" />
 
-                    <NumericUpDown x:Name="TimerSeconds"
-                                   Value="{Binding DurationSeconds}"
-                                   IsVisible="{Binding IsCountingDown}"
-                                   ToolTip.Tip="Seconds"
-                                   Minimum="0"
-                                   Maximum="59"
-                                   Increment="5"
-                                   FormatString="00"
-                                   FontSize="11"
-                                   Width="96"
-                                   ShowButtonSpinner="True" />
-                </WrapPanel>
+                                        <ItemsControl ItemsSource="{Binding DurationPresets}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="4" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:Int32">
+                                                    <Button Margin="0,0,3,0"
+                                                            FontSize="11"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Center"
+                                                            Content="{Binding}"
+                                                            ToolTip.Tip="Minutes"
+                                                            Command="{Binding $parent[ItemsControl].((vm:NoteTimerViewModel)DataContext).SetDurationCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <Grid ColumnDefinitions="*,Auto,*">
+                                            <NumericUpDown Grid.Column="0"
+                                                           x:Name="TimerMinutes"
+                                                           Value="{Binding DurationMinutes}"
+                                                           ToolTip.Tip="Minutes"
+                                                           Minimum="0" Maximum="600" Increment="1"
+                                                           FormatString="0"
+                                                           FontSize="12"
+                                                           ShowButtonSpinner="True" />
+
+                                            <TextBlock Grid.Column="1"
+                                                       Text=":"
+                                                       VerticalAlignment="Center"
+                                                       Margin="5,0" />
+
+                                            <NumericUpDown Grid.Column="2"
+                                                           x:Name="TimerSeconds"
+                                                           Value="{Binding DurationSeconds}"
+                                                           ToolTip.Tip="Seconds"
+                                                           Minimum="0" Maximum="59" Increment="5"
+                                                           FormatString="00"
+                                                           FontSize="12"
+                                                           ShowButtonSpinner="True" />
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
             </Grid>
         </Border>
 

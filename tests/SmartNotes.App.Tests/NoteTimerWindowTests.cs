@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Time.Testing;
@@ -25,6 +26,24 @@ public class NoteTimerWindowTests
         _notes = new NoteService(_repository, _clock);
         _autoSave = new AutoSaveService(_notes, _clock, TimeSpan.FromMilliseconds(750));
     }
+
+    /// <summary>
+    /// Opens the settings flyout and hands back its contents. A flyout builds its
+    /// content when it is shown, so nothing inside it exists before this.
+    /// </summary>
+    private static StackPanel OpenSettings(NoteWindow window)
+    {
+        var button = window.FindControl<Button>("TimerSettingsButton")!;
+        button.Flyout!.ShowAt(button);
+        Dispatcher.UIThread.RunJobs();
+
+        return ((Flyout)button.Flyout!).Content as StackPanel
+            ?? throw new InvalidOperationException("the settings flyout has no content");
+    }
+
+    private static T InSettings<T>(NoteWindow window, string name)
+        where T : Control
+        => OpenSettings(window).GetLogicalDescendants().OfType<T>().Single(c => c.Name == name);
 
     private NoteWindow OpenWindow(bool withTimer)
     {
@@ -120,16 +139,15 @@ public class NoteTimerWindowTests
     }
 
     [AvaloniaFact]
-    public void TimerBar_WhileStopped_OffersTheSettings()
+    public void TimerBar_WhileStopped_LetsYouOpenTheSettings()
     {
         var window = OpenWindow(withTimer: true);
 
-        Assert.True(window.FindControl<WrapPanel>("TimerEditRow")!.IsVisible);
-        Assert.True(window.FindControl<NumericUpDown>("TimerMinutes")!.IsVisible);
+        Assert.True(window.FindControl<Button>("TimerSettingsButton")!.IsEnabled);
     }
 
     [AvaloniaFact]
-    public void TimerBar_OnceRunning_HidesTheSettings()
+    public void TimerBar_OnceRunning_LocksTheSettings()
     {
         // Moving the finish line halfway through is a way to be confused.
         var window = OpenWindow(withTimer: true);
@@ -138,7 +156,7 @@ public class NoteTimerWindowTests
         note.Timer!.StartCommand.Execute(null);
         Dispatcher.UIThread.RunJobs();
 
-        Assert.False(window.FindControl<WrapPanel>("TimerEditRow")!.IsVisible);
+        Assert.False(window.FindControl<Button>("TimerSettingsButton")!.IsEnabled);
     }
 
     [AvaloniaFact]
@@ -146,7 +164,7 @@ public class NoteTimerWindowTests
     {
         var window = OpenWindow(withTimer: true);
 
-        window.FindControl<NumericUpDown>("TimerMinutes")!.Value = 12;
+        InSettings<NumericUpDown>(window, "TimerMinutes").Value = 12;
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("12:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
@@ -157,7 +175,7 @@ public class NoteTimerWindowTests
     {
         var window = OpenWindow(withTimer: true);
 
-        window.FindControl<TextBox>("TimerLabel")!.Text = "Grabbing coffee";
+        InSettings<TextBox>(window, "TimerLabelBox").Text = "Grabbing coffee";
         Dispatcher.UIThread.RunJobs();
 
         var note = (NoteViewModel)window.DataContext!;
@@ -170,7 +188,7 @@ public class NoteTimerWindowTests
         var window = OpenWindow(withTimer: true);
         var note = (NoteViewModel)window.DataContext!;
 
-        window.FindControl<Button>("TimerDirectionToggle")!.Command!.Execute(null);
+        InSettings<Button>(window, "TimerDirectionToggle").Command!.Execute(null);
         Dispatcher.UIThread.RunJobs();
 
         Assert.False(note.Timer!.IsCountingDown);
@@ -187,7 +205,9 @@ public class NoteTimerWindowTests
         note.Timer!.ToggleDirectionCommand.Execute(null);
         Dispatcher.UIThread.RunJobs();
 
-        Assert.False(window.FindControl<NumericUpDown>("TimerMinutes")!.IsVisible);
+        // The whole "how long" section goes, not just the field: there is no
+        // length to set on something that counts up.
+        Assert.False(InSettings<StackPanel>(window, "TimerLengthSection").IsVisible);
     }
 
     /// <summary>
@@ -229,19 +249,19 @@ public class NoteTimerWindowTests
     }
 
     [AvaloniaFact]
-    public void TimerBar_AfterResetting_OffersTheSettingsAgain()
+    public void TimerBar_AfterResetting_UnlocksTheSettingsAgain()
     {
         var window = OpenWindow(withTimer: true);
         var note = (NoteViewModel)window.DataContext!;
         note.Timer!.StartCommand.Execute(null);
         _clock.Advance(TimeSpan.FromMinutes(6));
         Dispatcher.UIThread.RunJobs();
-        Assert.False(window.FindControl<WrapPanel>("TimerEditRow")!.IsVisible);
+        Assert.False(window.FindControl<Button>("TimerSettingsButton")!.IsEnabled);
 
         window.FindControl<Button>("TimerReset")!.Command!.Execute(null);
         Dispatcher.UIThread.RunJobs();
 
-        Assert.True(window.FindControl<WrapPanel>("TimerEditRow")!.IsVisible);
+        Assert.True(window.FindControl<Button>("TimerSettingsButton")!.IsEnabled);
     }
 
     /// <summary>
@@ -253,7 +273,7 @@ public class NoteTimerWindowTests
     {
         var window = OpenWindow(withTimer: true);
         var note = (NoteViewModel)window.DataContext!;
-        var inner = window.FindControl<NumericUpDown>("TimerMinutes")!
+        var inner = InSettings<NumericUpDown>(window, "TimerMinutes")
             .GetVisualDescendants().OfType<TextBox>().First();
 
         inner.Text = "12";
@@ -269,9 +289,9 @@ public class NoteTimerWindowTests
         var window = OpenWindow(withTimer: true);
         var note = (NoteViewModel)window.DataContext!;
 
-        window.FindControl<NumericUpDown>("TimerMinutes")!
+        InSettings<NumericUpDown>(window, "TimerMinutes")
             .GetVisualDescendants().OfType<TextBox>().First().Text = "2";
-        window.FindControl<NumericUpDown>("TimerSeconds")!
+        InSettings<NumericUpDown>(window, "TimerSeconds")
             .GetVisualDescendants().OfType<TextBox>().First().Text = "30";
         Dispatcher.UIThread.RunJobs();
 
@@ -298,5 +318,50 @@ public class NoteTimerWindowTests
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("10:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
+    }
+
+    /// <summary>
+    /// The bar has to survive the narrowest a note can be. It did not before the
+    /// settings moved into a flyout: a label, a direction toggle, four presets
+    /// and a minutes-and-seconds pair were clipped to unreadable stumps.
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(180)]
+    [InlineData(280)]
+    [InlineData(520)]
+    public void TimerBar_AtAnyNoteWidth_KeepsTheCountAndItsButtonsWhole(int width)
+    {
+        var window = OpenWindow(withTimer: true);
+
+        window.Width = width;
+        Dispatcher.UIThread.RunJobs();
+
+        var display = window.FindControl<TextBlock>("TimerDisplay")!;
+        Assert.True(display.Bounds.Width > 0, $"the count has no width at {width}px");
+
+        foreach (var name in new[] { "TimerStart", "TimerRestart", "TimerReset", "TimerSettingsButton" })
+        {
+            var button = window.FindControl<Button>(name)!;
+            Assert.True(
+                button.Bounds.Width > 0 && button.Bounds.Height > 0,
+                $"{name} has collapsed at {width}px");
+        }
+    }
+
+    [AvaloniaFact]
+    public void TimerBar_HasNothingLeftToClip()
+    {
+        // Everything you set rather than press is in the flyout now, so the bar
+        // itself holds only the count and its transport. FindControl would still
+        // reach the spinners through the flyout's name scope, so this asks the
+        // bar's own visual tree instead.
+        var window = OpenWindow(withTimer: true);
+
+        var onTheBar = window.FindControl<Border>("TimerBar")!
+            .GetVisualDescendants()
+            .OfType<NumericUpDown>()
+            .ToList();
+
+        Assert.Empty(onTheBar);
     }
 }

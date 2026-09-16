@@ -221,8 +221,17 @@ the sign — the clamp is in `DisplayAt` only. The colour is what distinguishes 
 finished timer from one that has not started, so do not drop it while keeping the
 clamp.
 
-**The timer's settings show only while it is stopped** (`CanEdit`). Moving the
-finish line halfway through a countdown is a way to be confused.
+**The timer bar holds the count and its transport, and nothing else.** Everything
+you *set* rather than *press* — label, direction, presets, minutes and seconds —
+lives in the flyout behind the `…` button. A note is 280px wide by default and
+those do not fit beside a count: they were clipped to unreadable stumps when they
+tried. A flyout is not bound by the note's width, so it works at any size. Do not
+move a setting back onto the bar; `TimerBar_AtAnyNoteWidth_KeepsTheCountAndItsButtonsWhole`
+and `TimerBar_HasNothingLeftToClip` are what hold that line.
+
+**The timer's settings are locked while it is running** (`CanEdit` disables the
+`…` button). Moving the finish line halfway through a countdown is a way to be
+confused.
 
 **Setting a countdown's length clears what has already run.** "10 minutes" means
 a ten-minute break, not ten minutes minus what you used — keeping the banked time
