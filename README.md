@@ -15,13 +15,16 @@ repository over SQLite.
 
 ![Three keystrokes arriving in a note. Each one restarts the autosave debounce, so nothing is written while typing continues; the quiet after the last one produces exactly one SQLite UPDATE.](media/keystroke.svg)
 
+<sub>Stepped, and four figures more, on the **[architecture
+page](https://algorisys-oss.github.io/yappynotes/architecture.html)** — made with
+**[tinyfly.app](https://tinyfly.app)**. This one loops in CSS instead, because a
+GitHub README runs no JavaScript.</sub>
+
 Nothing is ever saved by pressing a button, and nothing is saved per keystroke
-either. That is the shape of most of this codebase, and there are four more
-figures — the layers and the one arrow that must never exist, a timer session
-where the write counter moves three times in eight minutes, why a countdown
-survives being closed, and the repository contract answered twice — on the
-**[architecture page](https://algorisys-oss.github.io/yappynotes/architecture.html)**,
-where they step rather than loop.
+either. That is the shape of most of this codebase. The other four figures are
+the layers and the one arrow that must never exist, a timer session where the
+write counter moves three times in eight minutes, why a countdown survives being
+closed, and the repository contract answered twice.
 
 > **Status: Milestone 5 done. Milestone 6 — rich text and a tray icon — is
 > scoped in [docs/plan.md](docs/plan.md) and not started.**
