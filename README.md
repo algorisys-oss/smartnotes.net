@@ -213,4 +213,10 @@ the second.
 
 ## Licence
 
-Not yet chosen.
+MIT — see [LICENSE](LICENSE). Use it, change it, ship it; keep the copyright
+notice.
+
+Everything SmartNotes ships is MIT too: Avalonia, CommunityToolkit.Mvvm,
+`Microsoft.Data.Sqlite` and the `Microsoft.Extensions.*` packages. xunit is
+Apache-2.0, which is MIT-compatible and in any case only ever runs the tests —
+it is not distributed with the app.

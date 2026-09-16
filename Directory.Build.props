@@ -7,6 +7,10 @@
     <InformationalVersion>$(VersionPrefix)</InformationalVersion>
     <Authors>SmartNotes contributors</Authors>
     <Product>SmartNotes</Product>
+    <Copyright>Copyright (c) 2026 Algorisys OSS Team</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/algorisys-oss/smartnotes.net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/algorisys-oss/smartnotes.net</RepositoryUrl>
 
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
