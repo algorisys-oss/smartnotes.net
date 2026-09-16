@@ -134,7 +134,7 @@ public class AutoSaveServiceTests
 
         note.Content = "closed in a hurry";
         autoSave.Schedule(note);
-        await autoSave.FlushAsync(note.Id);
+        await autoSave.FlushAsync(note.Id, Token);
 
         Assert.Equal("closed in a hurry", await StoredContentAsync(note));
     }
@@ -147,7 +147,7 @@ public class AutoSaveServiceTests
         var counting = new CountingNoteRepository(_repository);
         await using var autoSave = new AutoSaveService(new NoteService(counting, _clock), _clock, Debounce);
 
-        await autoSave.FlushAsync(note.Id);
+        await autoSave.FlushAsync(note.Id, Token);
 
         Assert.Equal(0, counting.Updates);
     }
@@ -162,7 +162,7 @@ public class AutoSaveServiceTests
 
         note.Content = "flushed";
         autoSave.Schedule(note);
-        await autoSave.FlushAsync(note.Id);
+        await autoSave.FlushAsync(note.Id, Token);
         _clock.Advance(Debounce * 2);
         await autoSave.WhenIdleAsync();
 
@@ -183,7 +183,7 @@ public class AutoSaveServiceTests
         second.Content = "two";
         autoSave.Schedule(first);
         autoSave.Schedule(second);
-        await autoSave.FlushAllAsync();
+        await autoSave.FlushAllAsync(Token);
 
         Assert.Equal("one", await StoredContentAsync(first));
         Assert.Equal("two", await StoredContentAsync(second));
