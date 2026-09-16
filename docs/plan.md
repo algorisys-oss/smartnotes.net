@@ -279,8 +279,10 @@ feature is:
 
 Nothing in that row changes while the timer runs, which is the property the whole
 feature rests on. `ON DELETE CASCADE` means purging a note takes its timer with
-it — and that needs `PRAGMA foreign_keys = ON` per connection, which
-`NoteDatabase` does not set today because there is nothing yet to enforce.
+it, which needs `PRAGMA foreign_keys = ON` — per connection, not per database.
+Microsoft.Data.Sqlite turns it on by default, checked rather than assumed;
+`NoteDatabase` sets it anyway so the behaviour does not rest on a provider
+default, and `TimerCascadeTests` asserts the end state.
 
 Ids are made in the app rather than being `INTEGER` rowids, so a note object is
 complete before it has ever been written — which is what lets the view-model

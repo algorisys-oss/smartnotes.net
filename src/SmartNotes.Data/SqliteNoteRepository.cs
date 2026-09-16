@@ -23,9 +23,11 @@ public sealed class SqliteNoteRepository : INoteRepository
     /// </summary>
     private const string SelectColumns =
         """
-        select Id, Title, Content, Color, X, Y, Width, Height,
-               IsAlwaysOnTop, IsArchived, CreatedUtc, ModifiedUtc
-        from notes
+        select n.Id, n.Title, n.Content, n.Color, n.X, n.Y, n.Width, n.Height,
+               n.IsAlwaysOnTop, n.IsArchived, n.CreatedUtc, n.ModifiedUtc,
+               t.Direction, t.Duration, t.Label, t.StartedAtUtc, t.Accumulated
+        from notes n
+        left join note_timers t on t.NoteId = n.Id
         """;
 
     private readonly NoteDatabase _database;
@@ -40,7 +42,7 @@ public sealed class SqliteNoteRepository : INoteRepository
     {
         await using var connection = await _database.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = $"{SelectColumns} order by Id;";
+        command.CommandText = $"{SelectColumns} order by n.Id;";
 
         return await ReadAllAsync(command, cancellationToken);
     }
@@ -49,7 +51,7 @@ public sealed class SqliteNoteRepository : INoteRepository
     {
         await using var connection = await _database.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = $"{SelectColumns} where Id = @id;";
+        command.CommandText = $"{SelectColumns} where n.Id = @id;";
         command.Parameters.AddWithValue("@id", ToStorage(id));
 
         var notes = await ReadAllAsync(command, cancellationToken);
@@ -104,6 +106,8 @@ public sealed class SqliteNoteRepository : INoteRepository
             // implementation they are talking to.
             throw new InvalidOperationException($"A note with id {note.Id} is already stored.", failure);
         }
+
+        await SaveTimerAsync(connection, note, cancellationToken);
     }
 
     public async Task UpdateAsync(Note note, CancellationToken cancellationToken = default)
@@ -127,6 +131,8 @@ public sealed class SqliteNoteRepository : INoteRepository
         {
             throw new KeyNotFoundException($"There is no note with id {note.Id}.");
         }
+
+        await SaveTimerAsync(connection, note, cancellationToken);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -157,6 +163,7 @@ public sealed class SqliteNoteRepository : INoteRepository
 
     private static Note Read(SqliteDataReader reader) => new()
     {
+        Timer = ReadTimer(reader),
         Id = Guid.Parse(reader.GetString(0)),
         Title = reader.GetString(1),
         Content = reader.GetString(2),
@@ -170,6 +177,68 @@ public sealed class SqliteNoteRepository : INoteRepository
         CreatedUtc = ReadTimestamp(reader.GetString(10)),
         ModifiedUtc = ReadTimestamp(reader.GetString(11)),
     };
+
+    /// <summary>The joined note_timers columns, or null where the note has none.</summary>
+    private static NoteTimer? ReadTimer(SqliteDataReader reader)
+    {
+        const int direction = 12;
+
+        if (reader.IsDBNull(direction))
+        {
+            return null;
+        }
+
+        return new NoteTimer
+        {
+            Direction = Enum.Parse<TimerDirection>(reader.GetString(direction)),
+            Duration = TimeSpan.FromTicks(reader.GetInt64(13)),
+            Label = reader.GetString(14),
+            StartedAtUtc = reader.IsDBNull(15) ? null : ReadTimestamp(reader.GetString(15)),
+            Accumulated = TimeSpan.FromTicks(reader.GetInt64(16)),
+        };
+    }
+
+    /// <summary>
+    /// Writes, replaces or removes a note's timer to match the note handed in.
+    /// Always paired with the note's own write and inside the same connection.
+    /// </summary>
+    private static async Task SaveTimerAsync(
+        SqliteConnection connection, Note note, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+
+        if (note.Timer is not { } timer)
+        {
+            command.CommandText = "delete from note_timers where NoteId = @id;";
+            command.Parameters.AddWithValue("@id", ToStorage(note.Id));
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            return;
+        }
+
+        // One statement rather than a read-then-write, for the same reason the
+        // settings store uses one.
+        command.CommandText =
+            """
+            insert into note_timers (NoteId, Direction, Duration, Label, StartedAtUtc, Accumulated)
+            values (@id, @direction, @duration, @label, @startedAt, @accumulated)
+            on conflict (NoteId) do update set
+                Direction = excluded.Direction,
+                Duration = excluded.Duration,
+                Label = excluded.Label,
+                StartedAtUtc = excluded.StartedAtUtc,
+                Accumulated = excluded.Accumulated;
+            """;
+        command.Parameters.AddWithValue("@id", ToStorage(note.Id));
+        command.Parameters.AddWithValue("@direction", timer.Direction.ToString());
+        command.Parameters.AddWithValue("@duration", timer.Duration.Ticks);
+        command.Parameters.AddWithValue("@label", timer.Label);
+        command.Parameters.AddWithValue(
+            "@startedAt",
+            timer.StartedAtUtc is { } startedAt ? ToStorage(startedAt) : DBNull.Value);
+        command.Parameters.AddWithValue("@accumulated", timer.Accumulated.Ticks);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
 
     private static void AddAllParameters(SqliteCommand command, Note note)
     {
