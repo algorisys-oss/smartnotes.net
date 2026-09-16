@@ -85,7 +85,7 @@ public abstract class NoteRepositoryContract
         var note = NewNote("first");
         await repository.InsertAsync(note);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => repository.InsertAsync(note));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.InsertAsync(note));
     }
 
     /// <summary>
