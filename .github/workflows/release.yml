@@ -87,24 +87,31 @@ jobs:
         with:
           name: yappynotes-win-x64
 
-      # The exit code, not the output. Windows gives a WinExe no console of its
-      # own, so what Console.WriteLine reaches from a runner is not something to
-      # rely on - while the exit code is. Zero means the .NET runtime loaded,
-      # managed code ran and the argument was understood, which is the question
-      # this job exists to answer.
+      # This was written the other way round first, and the first run corrected
+      # it: the output arrives on Windows exactly as it does elsewhere, and it is
+      # $LASTEXITCODE that does not - PowerShell leaves it unset for a
+      # GUI-subsystem binary, which a WinExe is. So the output is what proves it
+      # ran, and an exit code has to be fetched through Start-Process -PassThru.
       - name: Run the packaged app
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $zip = (Get-Item yappynotes-*-win-x64.zip).FullName
           Expand-Archive -Path $zip -DestinationPath .
-          & .\YappyNotes.App.exe --version
-          if ($LASTEXITCODE -ne 0) { throw "--version exited $LASTEXITCODE" }
+
+          $printed = (& .\YappyNotes.App.exe --version | Out-String)
+          Write-Host $printed
+          if ($printed -notmatch 'YappyNotes \d+\.\d+\.\d+') {
+            throw "--version did not print a version; it printed: $printed"
+          }
 
           # An argument it does not know exits 2. A binary that could not start at
           # all would not manage to disagree with us.
-          & .\YappyNotes.App.exe --verison
-          if ($LASTEXITCODE -ne 2) { throw "an unknown argument exited $LASTEXITCODE, expected 2" }
+          $unknown = Start-Process -FilePath .\YappyNotes.App.exe -ArgumentList '--verison' `
+            -Wait -PassThru -NoNewWindow
+          if ($unknown.ExitCode -ne 2) {
+            throw "an unknown argument exited $($unknown.ExitCode), expected 2"
+          }
 
   release:
     # Only once every archive has been shown to run on its own OS.

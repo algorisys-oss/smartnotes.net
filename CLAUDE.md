@@ -348,6 +348,11 @@ phrase means all of this, in order:
 A tag with a suffix — `v0.2.0-beta.1` — is published as a prerelease and does not
 take the "latest" slot. That is decided from the tag, not by hand.
 
+A tag that fails its smoke jobs publishes nothing, which is the workflow working.
+Fix it, delete the tag locally and on `origin`, and push it again — a version
+number that never produced a release is free to reuse, and burning one to avoid
+deleting a tag leaves a gap someone will later try to explain.
+
 ## Conventions
 
 **This project is test-driven.** No production code without a failing test that
