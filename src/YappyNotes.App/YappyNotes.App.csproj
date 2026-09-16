@@ -21,6 +21,9 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <!-- Checks GitHub releases for a newer version and installs it. App only:
+         ViewModels sees IUpdater, never this. -->
+    <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
   <!-- App is the composition root, so it is the one project allowed to see both

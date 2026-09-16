@@ -40,6 +40,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial AppTheme Theme { get; set; } = AppTheme.System;
 
+    [ObservableProperty]
+    public partial bool CheckForUpdates { get; set; } = true;
+
     public IReadOnlyList<NoteColor> AvailableColors { get; } = Enum.GetValues<NoteColor>();
 
     public IReadOnlyList<AppTheme> AvailableThemes { get; } = Enum.GetValues<AppTheme>();
@@ -53,6 +56,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             DefaultNoteColor = stored.DefaultNoteColor;
             Theme = stored.Theme;
+            CheckForUpdates = stored.CheckForUpdates;
         }
         finally
         {
@@ -67,6 +71,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     public Task WhenSavedAsync() => _saving;
 
     partial void OnDefaultNoteColorChanged(NoteColor value) => Save();
+
+    partial void OnCheckForUpdatesChanged(bool value) => Save();
 
     partial void OnThemeChanged(AppTheme value)
     {
@@ -92,6 +98,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             DefaultNoteColor = DefaultNoteColor,
             Theme = Theme,
+            CheckForUpdates = CheckForUpdates,
         });
     }
 }

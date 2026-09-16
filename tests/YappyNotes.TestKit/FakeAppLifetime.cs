@@ -7,5 +7,12 @@ public sealed class FakeAppLifetime : IAppLifetime
 {
     public int QuitRequests { get; private set; }
 
-    public void Quit() => QuitRequests++;
+    /// <summary>Runs at the moment of quitting, to see what had happened by then.</summary>
+    public Action? OnQuit { get; set; }
+
+    public void Quit()
+    {
+        QuitRequests++;
+        OnQuit?.Invoke();
+    }
 }

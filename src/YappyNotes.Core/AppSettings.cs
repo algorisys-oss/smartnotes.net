@@ -11,6 +11,12 @@ public sealed class AppSettings
     /// dark sticky note is a different product.
     /// </summary>
     public AppTheme Theme { get; set; } = AppTheme.System;
+
+    /// <summary>
+    /// Whether to ask GitHub for a newer release on start. The only thing
+    /// YappyNotes ever sends over the network, and on unless it is turned off.
+    /// </summary>
+    public bool CheckForUpdates { get; set; } = true;
 }
 
 public enum AppTheme

@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Microsoft.Extensions.Time.Testing;
@@ -90,5 +91,25 @@ public class SettingsWindowTests
         var note = await notes.CreateAsync();
 
         Assert.Equal(NoteColor.Grey, note.Color);
+    }
+
+    /// <summary>
+    /// Bindings fail silently, so the box is unticked the way a reader would and
+    /// the view-model is what gets asked.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task SettingsWindow_UntickingUpdateChecks_TurnsThemOff()
+    {
+        var viewModel = new SettingsViewModel(_settings, new ThemeApplier());
+        await viewModel.LoadAsync();
+        var window = new Views.SettingsWindow(viewModel);
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        var box = window.FindControl<CheckBox>("UpdatesBox");
+        Assert.NotNull(box);
+
+        box.IsChecked = false;
+
+        Assert.False(viewModel.CheckForUpdates);
     }
 }

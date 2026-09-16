@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using YappyNotes.ViewModels;
 
 namespace YappyNotes.App;
@@ -16,9 +17,10 @@ namespace YappyNotes.App;
 /// </remarks>
 public static class TrayMenu
 {
-    public static TrayIcon Create(TrayViewModel tray)
+    public static TrayIcon Create(TrayViewModel tray, UpdatesViewModel updates)
     {
         ArgumentNullException.ThrowIfNull(tray);
+        ArgumentNullException.ThrowIfNull(updates);
 
         var menu = new NativeMenu();
         menu.Items.Add(new NativeMenuItem("New note") { Command = tray.NewNoteCommand });
@@ -26,6 +28,8 @@ public static class TrayMenu
         menu.Items.Add(new NativeMenuItem("Show all notes") { Command = tray.ShowAllNotesCommand });
         menu.Items.Add(new NativeMenuItem("Hide all notes") { Command = tray.HideAllNotesCommand });
         menu.Items.Add(new NativeMenuItem("Open manager") { Command = tray.OpenManagerCommand });
+        menu.Items.Add(new NativeMenuItemSeparator());
+        menu.Items.Add(UpdateItem(updates));
         menu.Items.Add(new NativeMenuItemSeparator());
         menu.Items.Add(new NativeMenuItem("Quit") { Command = tray.QuitCommand });
 
@@ -36,6 +40,26 @@ public static class TrayMenu
             Command = tray.OpenManagerCommand,
             Menu = menu,
         };
+    }
+
+    /// <remarks>
+    /// Its label is copied over on every change, for the same reason the commands
+    /// are set rather than bound. The change can arrive after an await that
+    /// resumed off the UI thread, and a native menu is not safe to touch from one.
+    /// </remarks>
+    private static NativeMenuItem UpdateItem(UpdatesViewModel updates)
+    {
+        var item = new NativeMenuItem(updates.MenuText) { Command = updates.UpdateCommand };
+
+        updates.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(UpdatesViewModel.MenuText))
+            {
+                Dispatcher.UIThread.Post(() => item.Header = updates.MenuText);
+            }
+        };
+
+        return item;
     }
 }
 
