@@ -1,0 +1,21 @@
+using SmartNotes.ViewModels;
+
+namespace SmartNotes.TestKit;
+
+/// <summary>
+/// Records what a view-model asked the windowing layer to do, so that view-model
+/// tests can assert on the request without a window existing.
+/// </summary>
+public sealed class FakeWindowManager : IWindowManager
+{
+    public List<Guid> Shown { get; } = [];
+    public List<Guid> Closed { get; } = [];
+
+    public void ShowNote(NoteViewModel note)
+    {
+        ArgumentNullException.ThrowIfNull(note);
+        Shown.Add(note.Id);
+    }
+
+    public void CloseNote(Guid noteId) => Closed.Add(noteId);
+}
