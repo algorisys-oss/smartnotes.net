@@ -430,8 +430,8 @@ on Markdown in Milestone 6.
 
 ### Milestone 6 — Rich text and a tray icon
 
-The last one, and **not started** — it is a separate session's work. Two things,
-chosen over the seven others that were on this list:
+The last one, and **half done**: the tray icon is in, rich text is not started.
+Two things, chosen over the seven others that were on this list:
 
 #### Rich text
 
@@ -463,7 +463,11 @@ inlines can carry a click handler for a link (Milestone 5's link chips may still
 be the better interaction), and how editing feels when the note is a couple of
 hundred words — a swap that loses the caret position will be noticed immediately.
 
-#### A tray icon
+#### A tray icon — done
+
+What follows was the plan, and it held. What was learned building it is in
+`CLAUDE.md` under "The app lives in the tray": Quit has to be `TryShutdown`, and a
+note window must not hold up a close during an app shutdown.
 
 This app is meant to run all day, and when every note is closed and the manager
 is shut there is currently nothing left to click. The tray is where it should

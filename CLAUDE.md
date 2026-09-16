@@ -27,15 +27,16 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 5, done; Milestone 6 is scoped but not started.**
+**The project is at Milestone 5, done; Milestone 6 is half done — the tray icon is
+in, rich text is not started.**
 All eight MMF items hold — notes are their own draggable, resizable, pinnable,
 recolourable windows, autosaved and restored; the manager lists, searches and
 archives; there is a settings window, keyboard shortcuts, CI and packaging for
 six runtime identifiers. On top of that, a note can carry a stream timer that
-counts down or up, and the links in its text are offered beside it. 346 green
-tests.
+counts down or up, and the links in its text are offered beside it. The app
+lives in the tray and outlives its windows. 363 green tests.
 
-**Milestone 6 is rich text and a tray icon**, and it is a separate session's
+**What is left of Milestone 6 is rich text**, and it is a separate session's
 work. `docs/plan.md` has the scope, the recommended approach and what was checked
 already — read that section before starting, and in particular the argument for
 keeping Markdown *in* `Content` rather than storing a rich-text blob: it is what
@@ -275,6 +276,24 @@ every field on `Note` is a value. The first reference-typed member — `Note.Tim
 is the one coming — has to be copied, or two notes share it and the two contract
 tests that guard this keep passing while it is broken. Add a contract case in the
 same commit as the field.
+
+**The app lives in the tray, so closing a window never ends it.** `ShutdownMode`
+is `OnExplicitShutdown`, and the only way out is the tray's Quit. Two things hold
+that together, both checked with a spike rather than read off the API:
+
+- **Quit is `TryShutdown()`, never `Shutdown()`.** Only `TryShutdown` raises
+  `ShutdownRequested`, which is where `AppServices.DisposeAsync` writes what the
+  debounce is holding. `Shutdown` goes straight to `Exit` and loses it.
+  `DesktopAppLifetime_Quit_RaisesTheShutdownRequestThatSaves` holds this.
+- **A note window does not hold up a close whose reason is an app shutdown.** A
+  close still cancelled when `TryShutdown` looks makes it give up, and nothing
+  else would end the process. The flush has already happened by then.
+  `NoteWindow.HoldsCloseToFlush`.
+
+The manager is built fresh by `WindowManager.ShowManager` each time it has been
+closed, because Avalonia cannot show a closed window again. Do not "fix" that by
+cancelling the manager's close and hiding it: a window that cancels its close
+cancels the app's shutdown too.
 
 **Migrations are append-only.** `PRAGMA user_version` is the schema number, and
 `Migrator` runs the steps above it in order, each in a transaction. **Never edit a

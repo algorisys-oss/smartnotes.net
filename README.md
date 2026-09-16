@@ -26,8 +26,8 @@ the layers and the one arrow that must never exist, a timer session where the
 write counter moves three times in eight minutes, why a countdown survives being
 closed, and the repository contract answered twice.
 
-> **Status: Milestone 5 done. Milestone 6 — rich text and a tray icon — is
-> scoped in [docs/plan.md](docs/plan.md) and not started.**
+> **Status: Milestone 5 done. Milestone 6 is half done: the tray icon is in, and
+> rich text is scoped in [docs/plan.md](docs/plan.md) and not started.**
 >
 > All eight MMF items hold: notes live on the desktop as their own borderless
 > windows — draggable, resizable, pinnable, recolourable — save themselves as you
@@ -41,7 +41,10 @@ closed, and the repository contract answered twice.
 > and which survives closing the app. Links in a note's text are offered beside
 > it, http/https/mailto only.
 >
-> 346 green tests. Start at [LOOP.md](LOOP.md).
+> The app lives in the tray: closing the manager leaves it running, and the tray
+> menu makes a new note, shows or hides every note, reopens the manager and quits.
+>
+> 363 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 

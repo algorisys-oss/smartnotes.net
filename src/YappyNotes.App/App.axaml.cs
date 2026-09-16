@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using YappyNotes.App.Views;
+using Avalonia.Controls;
 using YappyNotes.Core;
 using YappyNotes.ViewModels;
 
@@ -20,23 +20,33 @@ public partial class App : Application
         // lifetime, so this has to stay conditional rather than assume a window.
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var manager = new ManagerWindow();
-            desktop.MainWindow = manager;
-
-            // Closing the last note window must not end the process - the notes
-            // are the app, and the manager is how you get another one.
-            desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
+            // The app lives in the tray and runs all day, so closing the manager
+            // - or every note - must not end it. Quitting is the tray's Quit, which
+            // goes through TryShutdown so that ShutdownRequested still flushes.
+            desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
             desktop.ShutdownRequested += OnShutdownRequested;
 
-            _ = StartAsync(manager);
+            _ = StartAsync(desktop);
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private async Task StartAsync(ManagerWindow manager)
+    private async Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
-        _services = await AppServices.StartAsync(UserPaths.Resolve());
+        try
+        {
+            _services = await AppServices.StartAsync(UserPaths.Resolve());
+        }
+        catch
+        {
+            // With an explicit shutdown mode nothing else would ever end the
+            // process: no window has opened and no tray icon exists yet, so a
+            // failed start would leave YappyNotes running with nothing to click.
+            desktop.Shutdown(1);
+            throw;
+        }
+
         _windows = new WindowManager(
             _services.Notes,
             _services.AutoSave,
@@ -44,7 +54,10 @@ public partial class App : Application
 
         new ThemeApplier().Apply((await _services.Settings.LoadAsync()).Theme);
 
-        manager.Bind(new ManagerViewModel(_services.Notes, _windows));
+        var tray = new TrayViewModel(_services.Notes, _windows, new DesktopAppLifetime(desktop));
+        TrayIcon.SetIcons(this, [TrayMenu.Create(tray)]);
+
+        _windows.ShowManager();
 
         // Restore note windows: every note that was on the desktop comes back
         // where it was left.

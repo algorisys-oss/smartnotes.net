@@ -113,11 +113,27 @@ public partial class NoteWindow : Window
         this.FindControl<TextBox>("Body")?.Focus();
     }
 
+    /// <summary>
+    /// Whether a close for this reason is called off until the note is flushed.
+    /// </summary>
+    /// <remarks>
+    /// Only when the reader closes the note. When the app is ending, the flush has
+    /// already happened - <c>ShutdownRequested</c> is raised before any window is
+    /// asked to close, and the app disposes the autosave there. Holding the close
+    /// up anyway makes <c>TryShutdown</c> give up, and since the app lives in the
+    /// tray nothing else would end it. It gets away with that today only because
+    /// the second flush finds nothing pending and finishes synchronously, closing
+    /// the window again before <c>TryShutdown</c> has looked. A shutdown should not
+    /// rest on that.
+    /// </remarks>
+    public static bool HoldsCloseToFlush(WindowCloseReason reason)
+        => reason is not (WindowCloseReason.ApplicationShutdown or WindowCloseReason.OSShutdown);
+
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         base.OnClosing(e);
 
-        if (_closeConfirmed || _note is null)
+        if (_closeConfirmed || _note is null || !HoldsCloseToFlush(e.CloseReason))
         {
             return;
         }

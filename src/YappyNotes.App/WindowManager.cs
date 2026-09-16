@@ -100,6 +100,30 @@ public sealed class WindowManager : IWindowManager
         _ = settings.LoadAsync();
     }
 
+    /// <summary>The manager window, while it is open.</summary>
+    public ManagerWindow? OpenManager { get; private set; }
+
+    /// <remarks>
+    /// A fresh window each time it has been closed: Avalonia cannot show a closed
+    /// window again, and since the app lives in the tray, closing the manager no
+    /// longer ends it. Hiding on close instead was the alternative, and it is a
+    /// trap - a window that cancels its close also cancels the app's shutdown.
+    /// </remarks>
+    public void ShowManager()
+    {
+        if (OpenManager is not null)
+        {
+            OpenManager.Activate();
+            return;
+        }
+
+        var window = new ManagerWindow();
+        window.Bind(new ManagerViewModel(_notes, this));
+        window.Closed += (_, _) => OpenManager = null;
+        OpenManager = window;
+        window.Show();
+    }
+
     public void CloseNote(Guid noteId)
     {
         if (_open.TryGetValue(noteId, out var window))

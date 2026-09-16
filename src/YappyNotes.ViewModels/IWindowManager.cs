@@ -31,4 +31,13 @@ public interface IWindowManager
 
     /// <summary>Opens the settings window, or brings it forward.</summary>
     void ShowSettings();
+
+    /// <summary>
+    /// Opens the manager window, or brings it forward - including after it has
+    /// been closed, since the app now outlives it.
+    /// </summary>
+    void ShowManager();
+
+    /// <summary>The notes that currently have a window open.</summary>
+    IReadOnlyCollection<Guid> OpenNotes { get; }
 }
