@@ -18,4 +18,8 @@ public sealed class FakeWindowManager : IWindowManager
     }
 
     public void CloseNote(Guid noteId) => Closed.Add(noteId);
+
+    public int SettingsShown { get; private set; }
+
+    public void ShowSettings() => SettingsShown++;
 }

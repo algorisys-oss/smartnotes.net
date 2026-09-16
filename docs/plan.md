@@ -391,6 +391,19 @@ Colours, always-on-top, settings and theme, keyboard shortcuts, the empty state,
 and packaging for the three platforms. MMF 4–5 and 8. The app stops being a
 prototype here.
 
+Done: the colour menu and pin button, `Topmost` actually following the note,
+`SettingsService` over its own repository contract, the default-colour and theme
+settings, Ctrl+N / Ctrl+P / Ctrl+W / Escape, the manager's empty states, and
+`scripts/package.sh` for all six runtime identifiers — verified by unpacking the
+linux-x64 archive and watching it start.
+
+Both of the pieces that were open are now in: a settings window reached from the
+manager, and `.github/workflows/ci.yml`, which builds, tests and format-checks
+every push and pull request and then packages all six runtime identifiers.
+
+**The MMF is complete.** All eight items hold, which is the bar this plan set for
+letting someone else install it.
+
 ### Milestone 5 — Dynamic notes
 
 The stream timer and hyperlinks, designed in "Review: dynamic notes" above.

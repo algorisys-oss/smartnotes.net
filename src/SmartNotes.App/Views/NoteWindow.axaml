@@ -2,12 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="clr-namespace:SmartNotes.App"
         xmlns:vm="clr-namespace:SmartNotes.ViewModels;assembly=SmartNotes.ViewModels"
+        xmlns:core="clr-namespace:SmartNotes.Core;assembly=SmartNotes.Core"
         x:Class="SmartNotes.App.Views.NoteWindow"
         x:DataType="vm:NoteViewModel"
         Title="{Binding Title}"
         Width="280" Height="300"
         MinWidth="180" MinHeight="140"
+        RequestedThemeVariant="Light"
         WindowDecorations="None"
+        Topmost="{Binding IsAlwaysOnTop}"
         ShowInTaskbar="False"
         Background="{Binding Color, Converter={x:Static app:NoteBrushes.Paper}}">
 
@@ -16,6 +19,10 @@
          the control alone does nothing, because the template's own border
          element carries the fill and swaps it again on hover and focus. These
          reach into that element for every state. -->
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+P" Command="{Binding TogglePinCommand}" />
+    </Window.KeyBindings>
+
     <Window.Styles>
         <Style Selector="TextBox /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent" />
@@ -50,13 +57,26 @@
     </Window.Styles>
 
     <Border BorderBrush="#33000000" BorderThickness="1">
+    <Border.ContextMenu>
+        <ContextMenu>
+            <MenuItem Header="Yellow" Command="{Binding SetColorCommand}" CommandParameter="{x:Static core:NoteColor.Yellow}" />
+            <MenuItem Header="Green"  Command="{Binding SetColorCommand}" CommandParameter="{x:Static core:NoteColor.Green}" />
+            <MenuItem Header="Blue"   Command="{Binding SetColorCommand}" CommandParameter="{x:Static core:NoteColor.Blue}" />
+            <MenuItem Header="Pink"   Command="{Binding SetColorCommand}" CommandParameter="{x:Static core:NoteColor.Pink}" />
+            <MenuItem Header="Purple" Command="{Binding SetColorCommand}" CommandParameter="{x:Static core:NoteColor.Purple}" />
+            <MenuItem Header="Grey"   Command="{Binding SetColorCommand}" CommandParameter="{x:Static core:NoteColor.Grey}" />
+            <Separator />
+            <MenuItem Header="Keep on top" Command="{Binding TogglePinCommand}" />
+            <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
+        </ContextMenu>
+    </Border.ContextMenu>
     <Grid RowDefinitions="Auto,*">
 
         <!-- The drag handle. A borderless window has no title bar to grab, so
              this strip is it; NoteWindow.axaml.cs calls BeginMoveDrag. -->
         <Grid x:Name="Header"
               Grid.Row="0"
-              ColumnDefinitions="*,Auto,Auto"
+              ColumnDefinitions="*,Auto,Auto,Auto"
               Background="{Binding Color, Converter={x:Static app:NoteBrushes.Edge}}">
 
             <!-- Not hit-testable until you double-click it. A TextBox fills its
@@ -76,7 +96,17 @@
                      Padding="8,4"
                      VerticalAlignment="Center" />
 
-            <Button Grid.Column="1"
+            <ToggleButton Grid.Column="1"
+                    x:Name="PinButton"
+                    IsChecked="{Binding IsAlwaysOnTop}"
+                    ToolTip.Tip="Keep this note on top of other windows (Ctrl+P)"
+                    Content="&#x25C9;"
+                    Foreground="#555"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="8,4" />
+
+            <Button Grid.Column="2"
                     x:Name="ArchiveButton"
                     Command="{Binding ArchiveCommand}"
                     ToolTip.Tip="Archive this note (it can be restored)"
@@ -86,10 +116,10 @@
                     BorderThickness="0"
                     Padding="8,4" />
 
-            <Button Grid.Column="2"
+            <Button Grid.Column="3"
                     x:Name="CloseButton"
                     Click="OnCloseClicked"
-                    ToolTip.Tip="Close the window, keep the note"
+                    ToolTip.Tip="Close the window, keep the note (Ctrl+W or Esc)"
                     Content="&#x2013;"
                     Foreground="#555"
                     Background="Transparent"

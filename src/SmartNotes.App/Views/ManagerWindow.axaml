@@ -8,6 +8,10 @@
         Width="380" Height="560"
         MinWidth="320" MinHeight="360">
 
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+N" Command="{Binding NewNoteCommand}" />
+    </Window.KeyBindings>
+
     <DockPanel>
 
         <!-- Everything you can do that is not about one particular note. -->
@@ -16,6 +20,7 @@
             <Button x:Name="NewNoteButton"
                     Command="{Binding NewNoteCommand}"
                     Content="New note"
+                    ToolTip.Tip="Ctrl+N"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     Padding="12,9" />
@@ -25,10 +30,22 @@
                      PlaceholderText="Search notes…"
                      Padding="8,6" />
 
-            <ToggleSwitch x:Name="ArchiveToggle"
-                          IsChecked="{Binding ShowingArchive}"
-                          OnContent="Archive"
-                          OffContent="Desktop" />
+            <Grid ColumnDefinitions="*,Auto">
+                <ToggleSwitch Grid.Column="0"
+                              x:Name="ArchiveToggle"
+                              IsChecked="{Binding ShowingArchive}"
+                              OnContent="Archive"
+                              OffContent="Desktop" />
+
+                <Button Grid.Column="1"
+                        x:Name="SettingsButton"
+                        Command="{Binding OpenSettingsCommand}"
+                        ToolTip.Tip="Settings"
+                        Content="&#x2699;"
+                        FontSize="15"
+                        Padding="8,4"
+                        VerticalAlignment="Center" />
+            </Grid>
         </StackPanel>
 
         <TextBlock DockPanel.Dock="Bottom"

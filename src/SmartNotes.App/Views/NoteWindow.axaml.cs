@@ -67,11 +67,33 @@ public partial class NoteWindow : Window
             Width = note.Width;
             Height = note.Height;
             Position = new Avalonia.PixelPoint(note.X, note.Y);
-            Topmost = note.IsAlwaysOnTop;
+            // Topmost is bound in XAML, so pinning follows the view-model rather
+            // than being frozen at whatever it was when the window opened.
         }
         finally
         {
             _applyingGeometry = false;
+        }
+    }
+
+    /// <summary>
+    /// Ctrl+W and Escape close the window and keep the note. Handled here rather
+    /// than as a KeyBinding because closing is the window's business, not the
+    /// view-model's - the view-model has no idea a window exists.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Escape || (e.Key == Key.W && e.KeyModifiers.HasFlag(KeyModifiers.Control)))
+        {
+            e.Handled = true;
+            Close();
         }
     }
 

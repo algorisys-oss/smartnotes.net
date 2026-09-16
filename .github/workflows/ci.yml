@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    # Ubuntu only. The whole suite is headless - the UI tests use
+    # Avalonia.Headless and never open a window - so nothing here needs a
+    # display, and a green run means the same as a green run on a desk.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # global.json pins the exact SDK, so there is nothing to keep in step
+          # between here and a developer's machine.
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore smartnotes.sln
+
+      - name: Build
+        # Warnings are treated as something you introduced rather than as errors
+        # in day-to-day work, but a pull request should not add one unnoticed.
+        run: dotnet build smartnotes.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test smartnotes.sln --configuration Release --no-build --verbosity normal
+
+      - name: Check formatting
+        run: dotnet format smartnotes.sln --verify-no-changes --no-restore
+
+  package:
+    # Proves the thing a reader would actually download still builds, on every
+    # platform it claims to support. Cross-publishing from Linux shows the files
+    # were produced; running the archive is a separate question and belongs to a
+    # release, not to every push.
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, linux-arm64, win-x64, win-arm64, osx-x64, osx-arm64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Package ${{ matrix.rid }}
+        run: scripts/package.sh ${{ matrix.rid }}

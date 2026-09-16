@@ -253,4 +253,28 @@ public class NoteServiceTests
 
         Assert.Equal(["filed"], found.Select(n => n.Title));
     }
+
+    [Fact]
+    public async Task CreateAsync_WithADefaultColourSet_MakesTheNoteThatColour()
+    {
+        var settings = new InMemorySettingsRepository();
+        await new SettingsService(settings).SaveAsync(
+            new AppSettings { DefaultNoteColor = NoteColor.Green }, Token);
+        var service = new NoteService(_repository, _clock, new SettingsService(settings));
+
+        var note = await service.CreateAsync(Token);
+
+        Assert.Equal(NoteColor.Green, note.Color);
+        Assert.Equal(NoteColor.Green, (await _repository.GetByIdAsync(note.Id, Token))!.Color);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithNoSettingsAvailable_FallsBackToYellow()
+    {
+        // The service is constructed without settings in most tests and in any
+        // code path that does not care; it must still make notes.
+        var note = await NewService().CreateAsync(Token);
+
+        Assert.Equal(NoteColor.Yellow, note.Color);
+    }
 }

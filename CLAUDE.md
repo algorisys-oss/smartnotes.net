@@ -16,6 +16,8 @@ Three files carry the project and they do not overlap:
 - **[LOOP.md](LOOP.md)** — how we build it. **This project is test-driven; read
   LOOP.md before writing code, every session.**
 - **[README.md](README.md)** — how to run it.
+- **[TODO.md](TODO.md)** — noticed since, not scheduled. Add to it rather than
+  letting an idea live in a commit message; do not work from it without asking.
 
 [docs/sticky-notes-architecture.pdf](docs/sticky-notes-architecture.pdf) is the
 original whiteboard drawing and has no text layer, so it cannot be read by
@@ -25,10 +27,15 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 3, done.** The manager lists notes, searches them,
-and holds the archive; notes live on the desktop as borderless windows, autosaved
-as you type and restored where they were left. 142 green tests. Milestone 4 is
-colours, pinning, settings and packaging — then Milestone 5's timer and links.
+**The project is at Milestone 4, done — the MMF is complete.** All eight MMF
+items hold: notes are their own draggable, resizable, pinnable, recolourable
+windows, autosaved and restored; the manager lists, searches and archives; there
+is a settings window, keyboard shortcuts, CI, and packaging for six runtime
+identifiers. 186 green tests.
+
+Next is **Milestone 5**: the stream timer and hyperlinks, designed in "Review:
+dynamic notes" in `docs/plan.md`. Read that before starting — the timer's shape
+is already decided and the reasons matter.
 
 `origin` is <https://github.com/algorisys-oss/smartnotes.net>, public.
 
@@ -56,6 +63,28 @@ scripts/dev-start.sh              # the same in Debug, so F12 developer tools ex
 
 Use `--sandbox` before touching the schema. Testing a migration against your own
 week-old notes is how notes get lost.
+
+### CI
+
+`.github/workflows/ci.yml` builds, tests and format-checks on every push to
+`main` and every pull request, then packages all six runtime identifiers. Ubuntu
+only, because nothing in the suite needs a window. There are no skipped tests and
+nothing that needs a database server — if CI is green and your machine is not,
+the difference is yours.
+
+### Packaging
+
+`scripts/package.sh <rid>` builds a self-contained release for one of six runtime
+identifiers and **prints the artifact path on stdout and nothing else** — build
+logs go to stderr, because callers capture the path with `$(...)`. Keep it that
+way, and add new packaging (a `.deb`, an `.app`) by calling it with
+`--publish-only` rather than writing a second `dotnet publish`.
+
+Releases are **not** single-file: Avalonia's native libraries want to be real
+files on disk.
+
+`scripts/version.sh` is the only reader of the version, and `VersionPrefix` in
+`Directory.Build.props` the only place it is written.
 
 ## Architecture
 

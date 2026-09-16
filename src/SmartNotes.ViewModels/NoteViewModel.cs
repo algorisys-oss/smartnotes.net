@@ -92,6 +92,25 @@ public sealed partial class NoteViewModel : ObservableObject
         set => Set(_note.Height, value, v => _note.Height = v);
     }
 
+    private static readonly IReadOnlyList<NoteColor> Palette = Enum.GetValues<NoteColor>();
+
+    /// <summary>
+    /// The colours this note could be painted. An instance property because that
+    /// is what a XAML ItemsSource can bind to; the list itself is shared.
+    /// </summary>
+    public IReadOnlyList<NoteColor> AvailableColors => Palette;
+
+    /// <summary>Pins the note above other windows, or lets it back down.</summary>
+    [RelayCommand]
+    public void TogglePin() => IsAlwaysOnTop = !IsAlwaysOnTop;
+
+    /// <summary>
+    /// Repaints the note. Going through the property rather than the note means
+    /// an unchanged colour still costs nothing.
+    /// </summary>
+    [RelayCommand]
+    public void SetColor(NoteColor color) => Color = color;
+
     /// <summary>
     /// What the delete button does: the note is filed away, not destroyed, and
     /// its window goes. Anything typed a moment ago is written first.

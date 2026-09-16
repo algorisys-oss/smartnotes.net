@@ -37,7 +37,12 @@ public partial class App : Application
     private async Task StartAsync(ManagerWindow manager)
     {
         _services = await AppServices.StartAsync(UserPaths.Resolve());
-        _windows = new WindowManager(_services.Notes, _services.AutoSave);
+        _windows = new WindowManager(
+            _services.Notes,
+            _services.AutoSave,
+            () => new SettingsViewModel(_services!.Settings, new ThemeApplier()));
+
+        new ThemeApplier().Apply((await _services.Settings.LoadAsync()).Theme);
 
         manager.Bind(new ManagerViewModel(_services.Notes, _windows));
 

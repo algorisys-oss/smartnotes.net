@@ -294,4 +294,14 @@ public class ManagerViewModelTests
 
         Assert.NotEqual(desktop, manager.EmptyMessage);
     }
+
+    [Fact]
+    public void OpenSettingsCommand_AsksForTheSettingsWindow()
+    {
+        var manager = NewManager();
+
+        manager.OpenSettingsCommand.Execute(null);
+
+        Assert.Equal(1, _windows.SettingsShown);
+    }
 }

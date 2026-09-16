@@ -28,4 +28,7 @@ public interface IWindowManager
 
     /// <summary>Closes the window showing this note, if one is open.</summary>
     void CloseNote(Guid noteId);
+
+    /// <summary>Opens the settings window, or brings it forward.</summary>
+    void ShowSettings();
 }

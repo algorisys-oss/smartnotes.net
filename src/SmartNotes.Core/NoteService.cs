@@ -14,20 +14,34 @@ public sealed class NoteService
 {
     private readonly INoteRepository _repository;
     private readonly TimeProvider _timeProvider;
+    private readonly SettingsService? _settings;
 
-    public NoteService(INoteRepository repository, TimeProvider timeProvider)
+    /// <param name="settings">
+    /// Optional, and optional on purpose: what colour a new note is belongs to
+    /// note policy, so it lives here - but every test and every path that only
+    /// reads or saves notes should not have to stand up a settings store to do
+    /// it. Without one, a new note is yellow.
+    /// </param>
+    public NoteService(INoteRepository repository, TimeProvider timeProvider, SettingsService? settings = null)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(timeProvider);
 
         _repository = repository;
         _timeProvider = timeProvider;
+        _settings = settings;
     }
 
     /// <summary>A new, empty note, already stored.</summary>
     public async Task<Note> CreateAsync(CancellationToken cancellationToken = default)
     {
         var note = Note.Create(_timeProvider);
+
+        if (_settings is not null)
+        {
+            note.Color = (await _settings.LoadAsync(cancellationToken)).DefaultNoteColor;
+        }
+
         await _repository.InsertAsync(note, cancellationToken);
         return note;
     }
