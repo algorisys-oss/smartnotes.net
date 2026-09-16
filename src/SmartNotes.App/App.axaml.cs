@@ -2,11 +2,16 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using SmartNotes.App.Views;
+using SmartNotes.Core;
+using SmartNotes.ViewModels;
 
 namespace SmartNotes.App;
 
 public partial class App : Application
 {
+    private AppServices? _services;
+    private WindowManager? _windows;
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -15,9 +20,60 @@ public partial class App : Application
         // lifetime, so this has to stay conditional rather than assume a window.
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new ManagerWindow();
+            var manager = new ManagerWindow();
+            desktop.MainWindow = manager;
+
+            // Closing the last note window must not end the process - the notes
+            // are the app, and the manager is how you get another one.
+            desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
+            desktop.ShutdownRequested += OnShutdownRequested;
+
+            _ = StartAsync(manager);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task StartAsync(ManagerWindow manager)
+    {
+        _services = await AppServices.StartAsync(UserPaths.Resolve());
+        _windows = new WindowManager();
+
+        manager.NewNote = NewNoteAsync;
+
+        // Restore note windows: every note that was on the desktop comes back
+        // where it was left.
+        foreach (var note in await _services.Notes.GetActiveAsync())
+        {
+            _windows.ShowNote(NewViewModel(note));
+        }
+    }
+
+    private async Task NewNoteAsync()
+    {
+        if (_services is null || _windows is null)
+        {
+            return;
+        }
+
+        var note = await _services.Notes.CreateAsync();
+        _windows.ShowNote(NewViewModel(note));
+    }
+
+    private NoteViewModel NewViewModel(Note note)
+        => new(note, _services!.Notes, _services.AutoSave, _windows!);
+
+    private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
+    {
+        if (_services is null)
+        {
+            return;
+        }
+
+        // Everything still sitting in a debounce gets written before the process
+        // goes. Blocking here is the price of shutdown being synchronous, and it
+        // is a handful of small UPDATEs.
+        _services.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _services = null;
     }
 }

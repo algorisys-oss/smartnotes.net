@@ -1,0 +1,124 @@
+using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using SmartNotes.Core;
+
+namespace SmartNotes.ViewModels;
+
+/// <summary>
+/// One sticky note, as the window bound to it sees it.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The <see cref="Note"/> is the single copy of the state: every property here
+/// reads and writes straight through to it rather than keeping a second copy in
+/// sync. That is why <c>[ObservableProperty]</c> is not used - the generated
+/// backing field would be exactly the duplicate this is avoiding, and the two
+/// would disagree the first time anything changed the note from elsewhere.
+/// </para>
+/// <para>
+/// Every setter that actually changes something schedules an autosave. Setting a
+/// property to the value it already holds writes nothing, so a window
+/// re-applying its bindings costs no disk.
+/// </para>
+/// </remarks>
+public sealed partial class NoteViewModel : ObservableObject
+{
+    private readonly Note _note;
+    private readonly NoteService _notes;
+    private readonly AutoSaveService _autoSave;
+    private readonly IWindowManager _windows;
+
+    public NoteViewModel(Note note, NoteService notes, AutoSaveService autoSave, IWindowManager windows)
+    {
+        ArgumentNullException.ThrowIfNull(note);
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(autoSave);
+        ArgumentNullException.ThrowIfNull(windows);
+
+        _note = note;
+        _notes = notes;
+        _autoSave = autoSave;
+        _windows = windows;
+    }
+
+    public Guid Id => _note.Id;
+
+    public string Title
+    {
+        get => _note.Title;
+        set => Set(_note.Title, value, v => _note.Title = v);
+    }
+
+    public string Content
+    {
+        get => _note.Content;
+        set => Set(_note.Content, value, v => _note.Content = v);
+    }
+
+    public NoteColor Color
+    {
+        get => _note.Color;
+        set => Set(_note.Color, value, v => _note.Color = v);
+    }
+
+    public bool IsAlwaysOnTop
+    {
+        get => _note.IsAlwaysOnTop;
+        set => Set(_note.IsAlwaysOnTop, value, v => _note.IsAlwaysOnTop = v);
+    }
+
+    public int X
+    {
+        get => _note.X;
+        set => Set(_note.X, value, v => _note.X = v);
+    }
+
+    public int Y
+    {
+        get => _note.Y;
+        set => Set(_note.Y, value, v => _note.Y = v);
+    }
+
+    public int Width
+    {
+        get => _note.Width;
+        set => Set(_note.Width, value, v => _note.Width = v);
+    }
+
+    public int Height
+    {
+        get => _note.Height;
+        set => Set(_note.Height, value, v => _note.Height = v);
+    }
+
+    /// <summary>
+    /// What the delete button does: the note is filed away, not destroyed, and
+    /// its window goes. Anything typed a moment ago is written first.
+    /// </summary>
+    [RelayCommand]
+    public async Task ArchiveAsync()
+    {
+        await _autoSave.FlushAsync(Id);
+        await _notes.ArchiveAsync(Id);
+        _windows.CloseNote(Id);
+    }
+
+    /// <summary>
+    /// The window is closing. Writes whatever the debounce was still holding -
+    /// cancelling it would lose the last sentence someone typed.
+    /// </summary>
+    public Task CloseAsync() => _autoSave.FlushAsync(Id);
+
+    private void Set<T>(T current, T value, Action<T> assign, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(current, value))
+        {
+            return;
+        }
+
+        assign(value);
+        OnPropertyChanged(propertyName);
+        _autoSave.Schedule(_note);
+    }
+}

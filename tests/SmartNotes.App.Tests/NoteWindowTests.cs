@@ -1,0 +1,153 @@
+using Avalonia.Headless.XUnit;
+using Microsoft.Extensions.Time.Testing;
+using SmartNotes.App.Views;
+using SmartNotes.Core;
+using SmartNotes.TestKit;
+using SmartNotes.ViewModels;
+
+namespace SmartNotes.App.Tests;
+
+public class NoteWindowTests
+{
+    private static readonly DateTimeOffset Noon =
+        new(2026, 9, 16, 12, 0, 0, TimeSpan.Zero);
+
+    private static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(750);
+
+    private readonly FakeTimeProvider _clock = new(Noon);
+    private readonly InMemoryNoteRepository _repository = new();
+    private readonly CountingNoteRepository _counting;
+    private readonly NoteService _notes;
+    private readonly AutoSaveService _autoSave;
+    private readonly WindowManager _windows = new();
+
+    public NoteWindowTests()
+    {
+        _counting = new CountingNoteRepository(_repository);
+        _notes = new NoteService(_counting, _clock);
+        _autoSave = new AutoSaveService(_notes, _clock, Debounce);
+    }
+
+    private NoteViewModel NewViewModel(Action<Note>? arrange = null)
+    {
+        var note = _notes.CreateAsync().GetAwaiter().GetResult();
+        arrange?.Invoke(note);
+        return new NoteViewModel(note, _notes, _autoSave, _windows);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_BoundToANote_TakesTheSizeTheNoteRemembers()
+    {
+        var viewModel = NewViewModel(note =>
+        {
+            note.Width = 420;
+            note.Height = 380;
+        });
+
+        var window = new NoteWindow(viewModel);
+
+        Assert.Equal(420, window.Width);
+        Assert.Equal(380, window.Height);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_BoundToAPinnedNote_OpensOnTop()
+    {
+        var viewModel = NewViewModel(note => note.IsAlwaysOnTop = true);
+
+        var window = new NoteWindow(viewModel);
+
+        Assert.True(window.Topmost);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_BoundToANote_ShowsItsTextAndColour()
+    {
+        var viewModel = NewViewModel(note =>
+        {
+            note.Content = "milk and bread";
+            note.Color = NoteColor.Blue;
+        });
+
+        var window = new NoteWindow(viewModel);
+
+        Assert.Same(viewModel, window.DataContext);
+        Assert.Equal("milk and bread", viewModel.Content);
+    }
+
+    /// <summary>
+    /// The feedback loop this guards against: applying a note's saved geometry to
+    /// the window raises the window's own change events, which write the geometry
+    /// back to the note, which schedules a save. Opening a note nobody touched
+    /// would rewrite every one of them on every start.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task NoteWindow_OpenedAtTheGeometryItWasSavedWith_WritesNothing()
+    {
+        var viewModel = NewViewModel(note =>
+        {
+            note.X = 300;
+            note.Y = 150;
+            note.Width = 420;
+            note.Height = 380;
+        });
+        var writesBefore = _counting.Updates;
+
+        var window = new NoteWindow(viewModel);
+        window.Show();
+
+        _clock.Advance(Debounce * 2);
+        await _autoSave.WhenIdleAsync();
+
+        Assert.Equal(writesBefore, _counting.Updates);
+    }
+
+    [AvaloniaFact]
+    public async Task NoteWindow_ResizedByTheReader_RemembersTheNewSize()
+    {
+        var viewModel = NewViewModel();
+        var window = new NoteWindow(viewModel);
+        window.Show();
+
+        window.Width = 500;
+        window.Height = 450;
+
+        _clock.Advance(Debounce);
+        await _autoSave.WhenIdleAsync();
+
+        var stored = await _repository.GetByIdAsync(viewModel.Id);
+        Assert.Equal((500, 450), (stored!.Width, stored.Height));
+    }
+
+    [AvaloniaFact]
+    public void ShowNote_ForANoteAlreadyOnScreen_DoesNotOpenASecondWindow()
+    {
+        // Two windows over one note would both be editing the same object and
+        // racing each other's autosave.
+        var viewModel = NewViewModel();
+
+        _windows.ShowNote(viewModel);
+        _windows.ShowNote(viewModel);
+
+        Assert.Single(_windows.OpenNotes);
+    }
+
+    [AvaloniaFact]
+    public void CloseNote_ForAnOpenNote_TakesItsWindowOffTheDesktop()
+    {
+        var viewModel = NewViewModel();
+        _windows.ShowNote(viewModel);
+
+        _windows.CloseNote(viewModel.Id);
+
+        Assert.Empty(_windows.OpenNotes);
+    }
+
+    [AvaloniaFact]
+    public void CloseNote_ForANoteThatWasNeverShown_DoesNothing()
+    {
+        _windows.CloseNote(Guid.CreateVersion7());
+
+        Assert.Empty(_windows.OpenNotes);
+    }
+}

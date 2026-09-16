@@ -7,10 +7,10 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
-> **Status: Milestone 1 done.** A note persists — the domain, both repositories,
-> migrations, and `NoteService` — on 78 green tests. There is no UI yet beyond a
-> window that opens and says nothing; Milestone 2 is the first one you could look
-> at. Everything below works today. Start at [LOOP.md](LOOP.md).
+> **Status: Milestone 2 done.** Notes live on the desktop as their own borderless
+> windows, save themselves as you type, and come back where you left them after a
+> restart. 113 green tests. The manager window has one button for now; searching
+> and the archive arrive in Milestone 3. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 

@@ -1,0 +1,107 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:SmartNotes.App"
+        xmlns:vm="clr-namespace:SmartNotes.ViewModels;assembly=SmartNotes.ViewModels"
+        x:Class="SmartNotes.App.Views.NoteWindow"
+        x:DataType="vm:NoteViewModel"
+        Title="{Binding Title}"
+        Width="280" Height="300"
+        MinWidth="180" MinHeight="140"
+        WindowDecorations="None"
+        ShowInTaskbar="False"
+        Background="{Binding Color, Converter={x:Static app:NoteBrushes.Paper}}">
+
+    <!-- Fluent draws a TextBox as a filled, bordered form field, which is the
+         opposite of what a sticky note is: setting Background="Transparent" on
+         the control alone does nothing, because the template's own border
+         element carries the fill and swaps it again on hover and focus. These
+         reach into that element for every state. -->
+    <Window.Styles>
+        <Style Selector="TextBox /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="CaretBrush" Value="#333333" />
+            <Setter Property="SelectionBrush" Value="#66000000" />
+            <Setter Property="Foreground" Value="#1A1A1A" />
+        </Style>
+
+        <!-- Same for the two header buttons: they should read as marks on the
+             paper, not as chrome sitting on top of it. -->
+        <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#22000000" />
+        </Style>
+        <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#33000000" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderBrush="#33000000" BorderThickness="1">
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- The drag handle. A borderless window has no title bar to grab, so
+             this strip is it; NoteWindow.axaml.cs calls BeginMoveDrag. -->
+        <Grid x:Name="Header"
+              Grid.Row="0"
+              ColumnDefinitions="*,Auto,Auto"
+              Background="{Binding Color, Converter={x:Static app:NoteBrushes.Edge}}">
+
+            <TextBox Grid.Column="0"
+                     Text="{Binding Title}"
+                     PlaceholderText="Title"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     Foreground="#222"
+                     FontWeight="SemiBold"
+                     Padding="8,4"
+                     VerticalAlignment="Center" />
+
+            <Button Grid.Column="1"
+                    x:Name="ArchiveButton"
+                    Command="{Binding ArchiveCommand}"
+                    ToolTip.Tip="Archive this note (it can be restored)"
+                    Content="&#x2715;"
+                    Foreground="#555"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="8,4" />
+
+            <Button Grid.Column="2"
+                    x:Name="CloseButton"
+                    Click="OnCloseClicked"
+                    ToolTip.Tip="Close the window, keep the note"
+                    Content="&#x2013;"
+                    Foreground="#555"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="8,4" />
+        </Grid>
+
+        <TextBox Grid.Row="1"
+                 x:Name="Body"
+                 Text="{Binding Content}"
+                 PlaceholderText="Write something…"
+                 AcceptsReturn="True"
+                 AcceptsTab="True"
+                 TextWrapping="Wrap"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 Foreground="#1a1a1a"
+                 Padding="8"
+                 VerticalAlignment="Stretch" />
+    </Grid>
+    </Border>
+</Window>
