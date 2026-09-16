@@ -25,10 +25,10 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 2, done.** Notes are on the desktop: borderless
-`NoteWindow`s bound to a `NoteViewModel`, autosaved as you type, restored where
-they were left. 113 green tests. `ManagerWindow` has one button ("New note") and
-becomes the real manager in Milestone 3.
+**The project is at Milestone 3, done.** The manager lists notes, searches them,
+and holds the archive; notes live on the desktop as borderless windows, autosaved
+as you type and restored where they were left. 142 green tests. Milestone 4 is
+colours, pinning, settings and packaging — then Milestone 5's timer and links.
 
 `origin` is <https://github.com/algorisys-oss/smartnotes.net>, public.
 
@@ -139,6 +139,18 @@ instead of fragmenting it. Three ways to break that, all silent:
 **Timestamps are ISO-8601 UTC text.** SQLite has no date type; text sorts
 correctly and stays readable in a SQL browser. Convert at the edge, never store
 local time.
+
+**One note, one `NoteViewModel`, one window.** `WindowManager` builds them and
+hands the same one back, because both the manager and the desktop open notes — if
+each built its own there would be two `Note` objects for one note, both held by
+the autosave, and whichever wrote last would quietly undo the other. The
+view-model is forgotten when the window closes, or an archive/restore would serve
+a stale copy. This is why `IWindowManager.ShowNoteAsync` takes an id.
+
+**A manager row is a `NoteListItem`, not a `NoteViewModel`** — read-only, cheap,
+and there may be a hundred. The manager lists newest-first while the repository
+returns oldest-first; both are right for what they are, so do not "fix" either to
+match the other.
 
 **`NoteService` owns what the repository refuses to decide.** A repository stores
 what it is given without an opinion and never filters archived notes out;
@@ -266,6 +278,15 @@ which target 11. Probe the assembly rather than trusting a snippet.
 
 `x:Name` on a `ColumnDefinition` or `RowDefinition` generates no field. Name the
 `Grid` and index into `ColumnDefinitions`.
+
+**Do not drive a view-model from a control's change event when a binding writes
+the same property.** The event and the binding have no guaranteed order, so the
+handler runs against the previous value — the manager's search was a keystroke
+behind until the trigger moved onto `ManagerViewModel`'s own property changes.
+Trigger from the view-model, not from `TextChanged`/`IsCheckedChanged`.
+
+**A command a control fires is not finished when the control returns.** Tests
+wait on `IAsyncRelayCommand.ExecutionTask` rather than sleeping.
 
 **Fluent styles a `TextBox` as a filled, bordered form field**, and
 `Background="Transparent"` on the control does not undo it: the template's own
