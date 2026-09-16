@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using SmartNotes.App.Views;
 using SmartNotes.Core;
+using SmartNotes.ViewModels;
 
 namespace SmartNotes.App;
 
@@ -38,7 +39,7 @@ public partial class App : Application
         _services = await AppServices.StartAsync(UserPaths.Resolve());
         _windows = new WindowManager(_services.Notes, _services.AutoSave);
 
-        manager.NewNote = NewNoteAsync;
+        manager.Bind(new ManagerViewModel(_services.Notes, _windows));
 
         // Restore note windows: every note that was on the desktop comes back
         // where it was left.
@@ -46,17 +47,6 @@ public partial class App : Application
         {
             await _windows.ShowNoteAsync(note.Id);
         }
-    }
-
-    private async Task NewNoteAsync()
-    {
-        if (_services is null || _windows is null)
-        {
-            return;
-        }
-
-        var note = await _services.Notes.CreateAsync();
-        await _windows.ShowNoteAsync(note.Id);
     }
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)

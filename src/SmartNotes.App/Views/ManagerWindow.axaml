@@ -1,27 +1,116 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:SmartNotes.App"
+        xmlns:vm="clr-namespace:SmartNotes.ViewModels;assembly=SmartNotes.ViewModels"
         x:Class="SmartNotes.App.Views.ManagerWindow"
+        x:DataType="vm:ManagerViewModel"
         Title="SmartNotes"
-        Width="360" Height="520"
-        MinWidth="280" MinHeight="320">
+        Width="380" Height="560"
+        MinWidth="320" MinHeight="360">
 
-    <!-- Milestone 2 needs one way to make a note. The list, the search box and
-         the archive arrive in Milestone 3. -->
-    <DockPanel Margin="16">
-        <Button DockPanel.Dock="Top"
-                x:Name="NewNoteButton"
-                Click="OnNewNoteClicked"
-                Content="New note"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                Padding="12,8" />
+    <DockPanel>
 
-        <TextBlock x:Name="Hint"
-                   Text="Your notes stay open on the desktop."
+        <!-- Everything you can do that is not about one particular note. -->
+        <StackPanel DockPanel.Dock="Top" Margin="16,16,16,8" Spacing="10">
+
+            <Button x:Name="NewNoteButton"
+                    Command="{Binding NewNoteCommand}"
+                    Content="New note"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Padding="12,9" />
+
+            <TextBox x:Name="SearchBox"
+                     Text="{Binding SearchText}"
+                     PlaceholderText="Search notes…"
+                     Padding="8,6" />
+
+            <ToggleSwitch x:Name="ArchiveToggle"
+                          IsChecked="{Binding ShowingArchive}"
+                          OnContent="Archive"
+                          OffContent="Desktop" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Bottom"
+                   Margin="16,8,16,14"
+                   Text="{Binding EmptyMessage}"
+                   IsVisible="{Binding IsEmpty}"
                    TextWrapping="Wrap"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center"
                    TextAlignment="Center"
-                   Opacity="0.45" />
+                   Opacity="0.5" />
+
+        <ListBox x:Name="NoteList"
+                 Margin="8,0,8,0"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 ItemsSource="{Binding Items}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:NoteListItem">
+
+                    <Border Margin="0,3"
+                            Padding="10,8"
+                            CornerRadius="4"
+                            Background="{Binding Color, Converter={x:Static app:NoteBrushes.Paper}}"
+                            BorderBrush="#22000000"
+                            BorderThickness="1">
+
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+
+                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                       Text="{Binding DisplayTitle}"
+                                       Foreground="#1A1A1A"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0"
+                                       Text="{Binding Preview}"
+                                       Foreground="#1A1A1A"
+                                       Opacity="0.6"
+                                       FontSize="12"
+                                       Margin="0,2,0,0"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <!-- The per-row actions. Which ones apply depends on
+                                 whether the note is on the desktop or filed away,
+                                 so each binds its visibility to that. -->
+                            <StackPanel Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Spacing="2">
+
+                                <Button Content="Open"
+                                        FontSize="11"
+                                        Padding="7,3"
+                                        IsVisible="{Binding !IsArchived}"
+                                        Command="{Binding $parent[ListBox].((vm:ManagerViewModel)DataContext).OpenCommand}"
+                                        CommandParameter="{Binding}" />
+
+                                <Button Content="Archive"
+                                        FontSize="11"
+                                        Padding="7,3"
+                                        IsVisible="{Binding !IsArchived}"
+                                        Command="{Binding $parent[ListBox].((vm:ManagerViewModel)DataContext).ArchiveCommand}"
+                                        CommandParameter="{Binding}" />
+
+                                <Button Content="Restore"
+                                        FontSize="11"
+                                        Padding="7,3"
+                                        IsVisible="{Binding IsArchived}"
+                                        Command="{Binding $parent[ListBox].((vm:ManagerViewModel)DataContext).RestoreCommand}"
+                                        CommandParameter="{Binding}" />
+
+                                <Button Content="Delete"
+                                        FontSize="11"
+                                        Padding="7,3"
+                                        Foreground="#A11"
+                                        IsVisible="{Binding IsArchived}"
+                                        Command="{Binding $parent[ListBox].((vm:ManagerViewModel)DataContext).DeleteForeverCommand}"
+                                        CommandParameter="{Binding}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
     </DockPanel>
 </Window>

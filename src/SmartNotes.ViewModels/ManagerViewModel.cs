@@ -37,6 +37,15 @@ public sealed partial class ManagerViewModel : ObservableObject
     [ObservableProperty]
     public partial bool ShowingArchive { get; set; }
 
+    // The list follows these two, and the trigger lives here rather than on the
+    // controls that set them. Wiring a TextBox's TextChanged to the search
+    // instead looks equivalent and is not: the event and the binding that writes
+    // SearchText have no guaranteed order between them, so the search would run
+    // against the previous value - a list one keystroke behind what was typed.
+    partial void OnSearchTextChanged(string value) => SearchCommand.Execute(null);
+
+    partial void OnShowingArchiveChanged(bool value) => SearchCommand.Execute(null);
+
     public bool IsEmpty => Items.Count == 0;
 
     public string EmptyMessage => ShowingArchive
