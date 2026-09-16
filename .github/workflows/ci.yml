@@ -57,3 +57,20 @@ jobs:
 
       - name: Package ${{ matrix.rid }}
         run: scripts/package.sh ${{ matrix.rid }}
+
+  installer:
+    # The Linux installer only, as a check that scripts/package-installer.sh and
+    # vpk still agree. Windows and macOS installers can only be packed on their own
+    # runners, which is the release workflow's job rather than every push's.
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Pack the linux-x64 installer
+        run: scripts/package-installer.sh linux-x64

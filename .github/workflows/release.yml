@@ -1,5 +1,7 @@
 # Builds a release for every runtime identifier on a tag, then proves the Windows
-# and macOS archives actually run on Windows and macOS.
+# and macOS archives actually run on Windows and macOS. Alongside the archives it
+# publishes Velopack's self-updating installers, which is what installed copies
+# update from.
 #
 # That second part is the point. scripts/package.sh cross-publishes happily from
 # Linux, which shows the files were produced - not that the binary starts once
@@ -113,9 +115,93 @@ jobs:
             throw "an unknown argument exited $($unknown.ExitCode), expected 2"
           }
 
+  # The self-updating installers, through Velopack. vpk packs only for the OS it
+  # runs on, so unlike the archives these cannot all be cross-built on Linux.
+  # Each one carries releases.<rid>.json, which is how an installed copy finds its
+  # next version on the GitHub release this workflow publishes - the channel is
+  # the runtime identifier, so every file name is distinct and all six share one
+  # release.
+  installers:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: linux-x64,   os: ubuntu-latest,  smoke: true }
+          - { rid: linux-arm64, os: ubuntu-latest,  smoke: false }
+          - { rid: win-x64,     os: windows-latest, smoke: true }
+          - { rid: win-arm64,   os: windows-latest, smoke: false }
+          - { rid: osx-x64,     os: macos-latest,   smoke: false }
+          - { rid: osx-arm64,   os: macos-latest,   smoke: true }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Bash on every runner, Git Bash on Windows, so there is one script.
+      - name: Pack
+        shell: bash
+        run: scripts/package-installer.sh ${{ matrix.rid }}
+
+      # The same proof the archives get - the thing a reader installs has to
+      # start on its own OS - taken from Velopack's portable build, which is the
+      # installed layout without running an installer on a runner. Only the
+      # runtimes a runner can execute; the arm64 Linux and Windows builds and the
+      # x64 macOS one are packed but cannot be run here.
+      - name: Run the portable build (Linux)
+        if: matrix.smoke && runner.os == 'Linux'
+        shell: bash
+        env:
+          # A runner has no FUSE to mount an AppImage with.
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          set -euo pipefail
+          app="artifacts/installers/${{ matrix.rid }}/YappyNotes-${{ matrix.rid }}.AppImage"
+          chmod +x "$app"
+          "$app" --version | tee out.txt
+          grep -q '^YappyNotes [0-9]\+\.[0-9]\+\.[0-9]\+' out.txt
+
+      - name: Run the portable build (macOS)
+        if: matrix.smoke && runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir portable
+          unzip -q "artifacts/installers/${{ matrix.rid }}/YappyNotes-${{ matrix.rid }}-Portable.zip" -d portable
+          app="$(find portable -path '*Contents/MacOS/YappyNotes.App' -type f | head -1)"
+          test -n "$app" || { echo "no YappyNotes.App inside the portable zip"; exit 1; }
+          "$app" --version | tee out.txt
+          grep -q '^YappyNotes [0-9]\+\.[0-9]\+\.[0-9]\+' out.txt
+
+      # Output is the proof on Windows, for the reason smoke-windows gives.
+      - name: Run the portable build (Windows)
+        if: matrix.smoke && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Expand-Archive -Path "artifacts/installers/${{ matrix.rid }}/YappyNotes-${{ matrix.rid }}-Portable.zip" -DestinationPath portable
+          $app = Get-ChildItem -Path portable -Recurse -Filter YappyNotes.App.exe | Select-Object -First 1
+          if (-not $app) { throw "no YappyNotes.App.exe inside the portable zip" }
+          $printed = (& $app.FullName --version | Out-String)
+          Write-Host $printed
+          if ($printed -notmatch 'YappyNotes \d+\.\d+\.\d+') {
+            throw "--version did not print a version; it printed: $printed"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.rid }}
+          path: artifacts/installers/${{ matrix.rid }}/*
+          if-no-files-found: error
+          retention-days: 1
+
   release:
-    # Only once every archive has been shown to run on its own OS.
-    needs: [smoke-linux, smoke-macos, smoke-windows]
+    # Only once every archive has been shown to run on its own OS, and every
+    # installer has been packed.
+    needs: [smoke-linux, smoke-macos, smoke-windows, installers]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:

@@ -2,7 +2,9 @@
 
 Desktop sticky notes for Ubuntu, Windows and macOS. Each note is its own window
 that stays where you put it, saves itself as you type, and is still there after a
-reboot. No account, no sync, no network — everything lives in one SQLite file.
+reboot. No account and no sync — everything lives in one SQLite file, and the only
+thing it ever asks the network is whether a newer release exists (which you can
+turn off).
 
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
@@ -43,8 +45,10 @@ closed, and the repository contract answered twice.
 >
 > The app lives in the tray: closing the manager leaves it running, and the tray
 > menu makes a new note, shows or hides every note, reopens the manager and quits.
+> An installed copy keeps itself up to date: it checks GitHub on start, downloads
+> a newer release, and offers to restart into it.
 >
-> 363 green tests. Start at [LOOP.md](LOOP.md).
+> 391 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 
@@ -221,6 +225,30 @@ and a sticky-notes app is not worth the debugging that hiding them invites.
 
 The version comes from `VersionPrefix` in `Directory.Build.props`, read by
 `scripts/version.sh`. That is the only place it is written down.
+
+### Installers, and updates
+
+    scripts/package-installer.sh linux-x64
+
+builds the self-updating installer for one runtime identifier with
+[Velopack](https://velopack.io) and prints the output folder, on the same
+stdout-only terms as `package.sh`, which it calls. Linux gets an `.AppImage`,
+Windows a `Setup.exe`, macOS a `.pkg`, each with a portable build beside it.
+`vpk` is a local tool pinned in `dotnet-tools.json`, restored by the script, and
+it only packs for the OS it runs on — so `win-*` is packed on Windows and `osx-*`
+on macOS. The release workflow does that on each platform's runner.
+
+**Only an installed copy updates itself.** The `.tar.gz` and `.zip` archives, a
+build from source and `scripts/deploy-local.sh`'s folder have no updater beside
+them; their tray says so and they never check. An installed copy asks GitHub for
+a newer release on start, downloads it, and turns the tray item into **Restart to
+update to x.y.z**. Quitting instead is fine: the next normal start installs it.
+A beta is offered the next beta; a stable install never is. Turn checking off in
+Settings.
+
+To try an update without publishing one, pack a higher version and point an
+older installed copy at the folder with `YAPPYNOTES_UPDATE_SOURCE` — see
+`.env.example`.
 
 ## Where YappyNotes keeps your files
 

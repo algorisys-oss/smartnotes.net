@@ -52,12 +52,18 @@ public partial class App : Application
             _services.AutoSave,
             () => new SettingsViewModel(_services!.Settings, new ThemeApplier()));
 
-        new ThemeApplier().Apply((await _services.Settings.LoadAsync()).Theme);
+        var settings = await _services.Settings.LoadAsync();
+        new ThemeApplier().Apply(settings.Theme);
 
-        var tray = new TrayViewModel(_services.Notes, _windows, new DesktopAppLifetime(desktop));
-        TrayIcon.SetIcons(this, [TrayMenu.Create(tray)]);
+        var lifetime = new DesktopAppLifetime(desktop);
+        var tray = new TrayViewModel(_services.Notes, _windows, lifetime);
+        var updates = new UpdatesViewModel(new VelopackUpdater(), lifetime);
+        TrayIcon.SetIcons(this, [TrayMenu.Create(tray, updates)]);
 
         _windows.ShowManager();
+
+        // Not awaited: the notes come back whether or not GitHub answers.
+        _ = updates.CheckOnStartAsync(settings.CheckForUpdates);
 
         // Restore note windows: every note that was on the desktop comes back
         // where it was left.

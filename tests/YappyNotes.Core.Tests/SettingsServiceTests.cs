@@ -63,4 +63,42 @@ public class SettingsServiceTests
         Assert.Equal(AppTheme.Light, settings.Theme);
         Assert.Equal(NoteColor.Yellow, settings.DefaultNoteColor);
     }
+
+    /// <summary>
+    /// On by default, which was a decision rather than a default: the plan's
+    /// "no network" goal became "no network but the update check, and you can
+    /// turn that off".
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_OnAFirstRun_ChecksForUpdates()
+    {
+        var settings = await NewService().LoadAsync(Token);
+
+        Assert.True(settings.CheckForUpdates);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WithUpdateChecksTurnedOff_RemembersThatOnTheNextLoad()
+    {
+        var service = NewService();
+
+        await service.SaveAsync(new AppSettings { CheckForUpdates = false }, Token);
+
+        Assert.False((await service.LoadAsync(Token)).CheckForUpdates);
+    }
+
+    /// <summary>
+    /// Unreadable falls back to on, like every other setting falls back to its
+    /// default. Worth pinning because "off" is the tempting reading of a value
+    /// nobody understands.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_WithAnUpdateSettingNothingUnderstands_ChecksForUpdates()
+    {
+        await _repository.SetAsync("checkForUpdates", "sometimes", Token);
+
+        var settings = await NewService().LoadAsync(Token);
+
+        Assert.True(settings.CheckForUpdates);
+    }
 }

@@ -15,6 +15,17 @@ and `FocusedNoteTests`.
 
 ## Known limitations, deliberately accepted for now
 
+- **Updates download the whole release, about 50 MB.** Velopack makes delta
+  packages when the previous release is in the output folder at pack time;
+  `release.yml` does not fetch it first (`vpk download github`), so there are
+  none. Worth doing once releases are frequent.
+- **The macOS installer and app are not signed or notarised**, and the Windows
+  `Setup.exe` is not signed. Gatekeeper and SmartScreen will warn on first run.
+  Signing needs certificates held as repository secrets.
+- **The Windows and macOS updaters have never been watched update.** The Linux
+  one was, end to end, against a local feed. The release workflow proves the
+  Windows and macOS portable builds start, not that one replaces itself.
+
 - **On a Linux desktop with no tray host, closing the manager hides the app.**
   The tray icon is a StatusNotifierItem, which GNOME shows only through the
   AppIndicator extension (Ubuntu ships it on; stock GNOME does not). Without one

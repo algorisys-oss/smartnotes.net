@@ -121,4 +121,27 @@ public class SettingsViewModelTests
         Assert.Equal(Enum.GetValues<NoteColor>(), viewModel.AvailableColors);
         Assert.Equal(Enum.GetValues<AppTheme>(), viewModel.AvailableThemes);
     }
+
+    [Fact]
+    public async Task CheckForUpdates_WhenTurnedOff_IsWrittenWithoutBeingAsked()
+    {
+        var viewModel = await LoadedAsync();
+
+        viewModel.CheckForUpdates = false;
+        await viewModel.WhenSavedAsync();
+
+        Assert.False((await StoredAsync()).CheckForUpdates);
+    }
+
+    [Fact]
+    public async Task Theme_WhenChanged_KeepsUpdateChecksAsTheyWere()
+    {
+        await _settings.SaveAsync(new AppSettings { CheckForUpdates = false }, Token);
+        var viewModel = await LoadedAsync();
+
+        viewModel.Theme = AppTheme.Dark;
+        await viewModel.WhenSavedAsync();
+
+        Assert.False((await StoredAsync()).CheckForUpdates);
+    }
 }

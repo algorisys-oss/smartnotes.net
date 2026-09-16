@@ -19,6 +19,26 @@ public class CommandLineTests
         Assert.False(CommandLine.TryAnswer([], out _, out _));
     }
 
+    /// <summary>
+    /// Only a normal start may install a downloaded update, because installing
+    /// one restarts the app. Found by running it: a stale package turned
+    /// "--version" into an install and a relaunch just to print a number.
+    /// </summary>
+    [Fact]
+    public void MayApplyUpdates_WithNoArguments_IsAllowed()
+    {
+        Assert.True(CommandLine.MayApplyUpdates([]));
+    }
+
+    [Theory]
+    [InlineData("--version")]
+    [InlineData("--where")]
+    [InlineData("--verison")]
+    public void MayApplyUpdates_WhenAnsweringAnArgument_IsNotAllowed(string argument)
+    {
+        Assert.False(CommandLine.MayApplyUpdates([argument]));
+    }
+
     [Theory]
     [InlineData("--version")]
     [InlineData("-v")]

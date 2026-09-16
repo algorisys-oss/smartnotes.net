@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using Microsoft.Extensions.Time.Testing;
 using YappyNotes.App.Views;
 using YappyNotes.Core;
@@ -21,6 +22,10 @@ public class TrayTests
     private readonly NoteService _notes;
     private readonly AutoSaveService _autoSave;
     private readonly WindowManager _windows;
+
+    private readonly FakeUpdater _updater = new();
+
+    private UpdatesViewModel NewUpdates() => new(_updater, new FakeAppLifetime());
 
     public TrayTests()
     {
@@ -108,22 +113,23 @@ public class TrayTests
     {
         var tray = new TrayViewModel(_notes, _windows, new FakeAppLifetime());
 
-        var icon = TrayMenu.Create(tray);
+        var icon = TrayMenu.Create(tray, NewUpdates());
 
         var headers = icon.Menu!.Items.OfType<NativeMenuItem>().Where(i => i is not NativeMenuItemSeparator).Select(i => i.Header);
-        Assert.Equal(["New note", "Show all notes", "Hide all notes", "Open manager", "Quit"], headers);
+        Assert.Equal(["New note", "Show all notes", "Hide all notes", "Open manager", "Check for updates", "Quit"], headers);
     }
 
     [AvaloniaFact]
     public void TrayMenu_ForATray_WiresEachItemToItsCommand()
     {
         var tray = new TrayViewModel(_notes, _windows, new FakeAppLifetime());
+        var updates = NewUpdates();
 
-        var icon = TrayMenu.Create(tray);
+        var icon = TrayMenu.Create(tray, updates);
 
         var commands = icon.Menu!.Items.OfType<NativeMenuItem>().Where(i => i is not NativeMenuItemSeparator).Select(i => i.Command);
         Assert.Equal(
-            [tray.NewNoteCommand, tray.ShowAllNotesCommand, tray.HideAllNotesCommand, tray.OpenManagerCommand, tray.QuitCommand],
+            [tray.NewNoteCommand, tray.ShowAllNotesCommand, tray.HideAllNotesCommand, tray.OpenManagerCommand, updates.UpdateCommand, tray.QuitCommand],
             commands);
     }
 
@@ -137,7 +143,7 @@ public class TrayTests
     {
         var tray = new TrayViewModel(_notes, _windows, new FakeAppLifetime());
 
-        var icon = TrayMenu.Create(tray);
+        var icon = TrayMenu.Create(tray, NewUpdates());
 
         Assert.Same(tray.OpenManagerCommand, icon.Command);
     }
@@ -147,8 +153,60 @@ public class TrayTests
     {
         var tray = new TrayViewModel(_notes, _windows, new FakeAppLifetime());
 
-        var icon = TrayMenu.Create(tray);
+        var icon = TrayMenu.Create(tray, NewUpdates());
 
         Assert.NotNull(icon.Icon);
+    }
+
+    /// <summary>
+    /// A NativeMenuItem is not in the visual tree and binds to nothing, so the
+    /// label is copied across whenever it changes - and a check that finished
+    /// with the menu still saying "Check for updates" would look like it never ran.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task TrayMenu_WhenAnUpdateIsReady_RelabelsTheUpdateItem()
+    {
+        _updater.Newer = "0.3.0";
+        var tray = new TrayViewModel(_notes, _windows, new FakeAppLifetime());
+        var updates = NewUpdates();
+        var icon = TrayMenu.Create(tray, updates);
+
+        await updates.UpdateCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+
+        var headers = icon.Menu!.Items.OfType<NativeMenuItem>().Select(i => i.Header);
+        Assert.Contains("Restart to update to 0.3.0", headers);
+    }
+
+    /// <summary>
+    /// The test run is a build, not an install, which is exactly the case that
+    /// has to answer "cannot update" without going anywhere near the network.
+    /// </summary>
+    [Fact]
+    public void VelopackUpdater_RunFromABuild_CannotUpdate()
+    {
+        var updater = new VelopackUpdater();
+
+        Assert.False(updater.CanUpdate);
+    }
+
+    [Fact]
+    public async Task VelopackUpdater_RunFromABuild_FindsNothingToInstall()
+    {
+        var updater = new VelopackUpdater();
+
+        Assert.Null(await updater.CheckAsync(TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Someone on a beta should be offered the next beta; everyone else should
+    /// never be moved onto one.
+    /// </summary>
+    [Theory]
+    [InlineData("0.2.0", false)]
+    [InlineData("0.2.0-beta.1", true)]
+    public void VelopackUpdater_ForAVersion_LooksAtPrereleasesOnlyFromAPrerelease(string version, bool expected)
+    {
+        Assert.Equal(expected, VelopackUpdater.WantsPrereleases(version));
     }
 }

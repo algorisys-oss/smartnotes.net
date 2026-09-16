@@ -326,8 +326,9 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
 </p>
 
 <p>
-  Nothing is ever saved by pressing a button. There is no account, no sync and no
-  network — the whole product is one SQLite file you could copy to a USB stick.
+  Nothing is ever saved by pressing a button. There is no account and no sync — the
+  whole product is one SQLite file you could copy to a USB stick, and the only
+  thing it asks the network is whether a newer release exists.
   That constraint is worth holding on to while reading the rest of this page,
   because several decisions that look fussy in isolation are paying for it.
 </p>
@@ -1645,7 +1646,7 @@ scripts/dev-start.sh --sandbox                            # a throwaway database
 <p>
   Everything else is parked with its reason attached, so that none of it is
   rediscovered as an oversight. <strong>Sync is rejected rather than deferred</strong>:
-  "no account, no sync and no network" is a product goal, and it is what lets the
+  "no account and no sync" is a product goal, and it is what lets the
   whole application be one file. Images, reminders, tags, stacking and a global
   hotkey each have their own paragraph in <a href="plan.md">the plan</a>; the
   hotkey's is the most interesting, because it is genuinely useful and genuinely
