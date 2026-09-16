@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SmartNotes — the architecture, and why it is shaped this way</title>
-<meta name="description" content="How SmartNotes is put together: four projects with dependencies running one way, a keystroke debounced into a single UPDATE, and a timer that ticks without ever writing to disk.">
+<title>YappyNotes — the architecture, and why it is shaped this way</title>
+<meta name="description" content="How YappyNotes is put together: four projects with dependencies running one way, a keystroke debounced into a single UPDATE, and a timer that ticks without ever writing to disk.">
 
 <!--
   A single file. Open it in a browser; there is nothing to build.
@@ -291,7 +291,7 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
 <body>
 
 <header class="page">
-  <h1>SmartNotes: the architecture</h1>
+  <h1>YappyNotes: the architecture</h1>
   <p class="standfirst">
     Four projects, dependencies running one way, and two mechanisms worth
     understanding before you change anything: how a keystroke becomes a single
@@ -300,7 +300,7 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
   <p class="meta">
     A companion to <a href="plan.md">docs/plan.md</a>, which is the authority.
     This page adds the moving pictures; where the two disagree, the plan wins.
-    Source: <a href="https://github.com/algorisys-oss/smartnotes.net">algorisys-oss/smartnotes.net</a>.
+    Source: <a href="https://github.com/algorisys-oss/yappynotes">algorisys-oss/yappynotes</a>.
     The figures step: use the buttons, or <kbd>←</kbd> and <kbd>→</kbd> with the
     figure focused.
   </p>
@@ -317,7 +317,7 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
 <h2>What the application is</h2>
 
 <p>
-  SmartNotes is a desktop sticky-notes app for Ubuntu, Windows and macOS, written
+  YappyNotes is a desktop sticky-notes app for Ubuntu, Windows and macOS, written
   in C# on .NET&nbsp;10 with <a href="https://avaloniaui.net">Avalonia&nbsp;UI</a>
   and SQLite. The product idea is one sentence long and the architecture follows
   from it: <strong>a note you open is a window on your desktop, not a row in a
@@ -341,10 +341,10 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
 
 <figure data-tinyfly-embed data-fullscreen="true"
         data-options='{"stepMode": true}'
-        data-alt="The four SmartNotes projects and the dependencies between them, built up one arrow at a time">
+        data-alt="The four YappyNotes projects and the dependencies between them, built up one arrow at a time">
   <div class="dg-scroll">
     <svg viewBox="0 0 764 300" role="img"
-       aria-label="The four SmartNotes projects and the dependencies between them">
+       aria-label="The four YappyNotes projects and the dependencies between them">
 
     <!-- the arrow that must never exist -->
     <g data-tinyfly="f1-back" opacity="1">
@@ -355,29 +355,29 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
       <path class="dg-arrow dg-bad" d="M172 20 L 186 36 M186 20 L 172 36"/>
     </g>
     <text data-tinyfly="f1-backlabel" opacity="1" class="dg-sub" x="300" y="32">
-      SmartNotes.ViewModels references no Avalonia — a failing test, not a code review
+      YappyNotes.ViewModels references no Avalonia — a failing test, not a code review
     </text>
 
     <!-- the four projects -->
     <g>
       <rect class="dg-box" x="16" y="60" width="120" height="68" rx="8"/>
       <text class="dg-title" x="76" y="90" text-anchor="middle">App</text>
-      <text class="dg-mono-d" x="76" y="110" text-anchor="middle" style="font-size:9px">SmartNotes.App</text>
+      <text class="dg-mono-d" x="76" y="110" text-anchor="middle" style="font-size:9px">YappyNotes.App</text>
     </g>
     <g>
       <rect class="dg-box" x="220" y="60" width="120" height="68" rx="8"/>
       <text class="dg-title" x="280" y="90" text-anchor="middle">ViewModels</text>
-      <text class="dg-mono-d" x="280" y="110" text-anchor="middle" style="font-size:9px">SmartNotes.ViewModels</text>
+      <text class="dg-mono-d" x="280" y="110" text-anchor="middle" style="font-size:9px">YappyNotes.ViewModels</text>
     </g>
     <g>
       <rect class="dg-box" x="424" y="60" width="120" height="68" rx="8"/>
       <text class="dg-title" x="484" y="90" text-anchor="middle">Core</text>
-      <text class="dg-mono-d" x="484" y="110" text-anchor="middle" style="font-size:9px">SmartNotes.Core</text>
+      <text class="dg-mono-d" x="484" y="110" text-anchor="middle" style="font-size:9px">YappyNotes.Core</text>
     </g>
     <g>
       <rect class="dg-box" x="628" y="60" width="120" height="68" rx="8"/>
       <text class="dg-title" x="688" y="90" text-anchor="middle">Data</text>
-      <text class="dg-mono-d" x="688" y="110" text-anchor="middle" style="font-size:9px">SmartNotes.Data</text>
+      <text class="dg-mono-d" x="688" y="110" text-anchor="middle" style="font-size:9px">YappyNotes.Data</text>
     </g>
 
     <!-- what lives in each -->
@@ -432,7 +432,7 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
   <script type="application/json" data-tinyfly-timeline>
   {
     "formatVersion": 1,
-    "id": "smartnotes-layers",
+    "id": "yappynotes-layers",
     "config": {
       "duration": 6600,
       "markers": [
@@ -489,7 +489,7 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
   </script>
 
   <figcaption>
-    Dependencies in SmartNotes, one arrow at a time. The dashed arrow is the only
+    Dependencies in YappyNotes, one arrow at a time. The dashed arrow is the only
     one that skips a layer, and it exists so that <code>AppServices</code> can
     hand <code>SqliteNoteRepository</code> to everything above it.
   </figcaption>
@@ -512,7 +512,7 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
   A folder inside the app project would have been less ceremony, and it would have
   let an Avalonia type leak into a view-model the first time someone needed a
   colour or a screen bound — at which point the layer quietly stops being a layer.
-  <code>SmartNotes.ViewModels</code> carries no Avalonia package reference, so that
+  <code>YappyNotes.ViewModels</code> carries no Avalonia package reference, so that
   mistake is a compile error instead of a code review. The side effect is the one
   that pays for it daily: every view-model test runs with <code>new</code>, on no
   UI thread, in milliseconds.
@@ -521,9 +521,9 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
 <p>
   Two tests keep it that way, and both were verified by breaking the rule on
   purpose and watching them fail:
-  <code>SmartNotes.Core.Tests/ArchitectureTests</code> asserts that Core
+  <code>YappyNotes.Core.Tests/ArchitectureTests</code> asserts that Core
   references nothing but the BCL, and
-  <code>SmartNotes.ViewModels.Tests/ArchitectureTests</code> asserts that
+  <code>YappyNotes.ViewModels.Tests/ArchitectureTests</code> asserts that
   ViewModels references no Avalonia assembly and nothing beyond
   CommunityToolkit.Mvvm. They read
   <code>Assembly.GetReferencedAssemblies()</code>, which lists what the compiled
@@ -548,16 +548,16 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
 
 <p>
   All of it is in one SQLite file, in the place each platform expects it —
-  <code>~/.local/share/SmartNotes/notes.db</code> on Linux,
-  <code>%APPDATA%\SmartNotes\</code> on Windows,
-  <code>~/Library/Application&nbsp;Support/SmartNotes/</code> on macOS.
+  <code>~/.local/share/YappyNotes/notes.db</code> on Linux,
+  <code>%APPDATA%\YappyNotes\</code> on Windows,
+  <code>~/Library/Application&nbsp;Support/YappyNotes/</code> on macOS.
   <code>UserPaths</code> in Core resolves that in one place, and it also honours
-  <code>SMARTNOTES_DATA_DIR</code>, which is what
+  <code>YAPPYNOTES_DATA_DIR</code>, which is what
   <code>scripts/dev-start.sh&nbsp;--sandbox</code> sets. Code that builds the path
   from <code>$HOME</code> is a bug on two of the three platforms.
   On Linux it honours <code>XDG_DATA_HOME</code>, which is correct and
   occasionally surprising: some snap-packaged apps point that variable into their
-  own sandbox, so SmartNotes started from a snap VS Code's terminal reads a
+  own sandbox, so YappyNotes started from a snap VS Code's terminal reads a
   different <code>notes.db</code> from one started by a desktop launcher, and the
   notes look as though they have vanished when they have not.
 </p>
@@ -617,7 +617,7 @@ html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); paddi
 <h2>How a keystroke reaches the disk</h2>
 
 <p>
-  Nothing in SmartNotes is saved by pressing a button, which means typing has to
+  Nothing in YappyNotes is saved by pressing a button, which means typing has to
   become writes, and the interesting question is how many. The answer is one per
   burst of typing, and the mechanism is a per-note debounce that
   <strong>restarts on every change</strong> rather than a timer that fires on a
@@ -1160,7 +1160,7 @@ paused    remaining = Duration -  Accumulated</code></pre>
   clock says it should be. There is no drift to correct and no catch-up pass on
   startup, because nothing was ever counting — the answer was always derived. The
   figure below runs the same two minutes away from the machine against the design
-  SmartNotes chose and the one it rejected.
+  YappyNotes chose and the one it rejected.
 </p>
 
 <figure data-tinyfly-embed data-fullscreen="true"
@@ -1205,7 +1205,7 @@ paused    remaining = Duration -  Accumulated</code></pre>
     </div>
 
   <script type="application/json" data-tinyfly-timeline
-          data-scenario="derived" data-scenario-label="When it started, and what was banked (SmartNotes)">
+          data-scenario="derived" data-scenario-label="When it started, and what was banked (YappyNotes)">
   {
     "formatVersion": 1,
     "id": "derived",
@@ -1266,7 +1266,7 @@ paused    remaining = Duration -  Accumulated</code></pre>
           { "time": 0, "value": "Start(now) wrote StartedAtUtc. Nothing else will be written this session." },
           { "time": 1100, "value": "remaining = Duration − (Accumulated + (now − StartedAtUtc)) = 5:00 − 0:30" },
           { "time": 2300, "value": "Closed mid-countdown. No timer was running in the app, so none had to be stopped." },
-          { "time": 3400, "value": "Two minutes of wall clock, and nothing of SmartNotes is running at all." },
+          { "time": 3400, "value": "Two minutes of wall clock, and nothing of YappyNotes is running at all." },
           { "time": 4500, "value": "Reopened: read the row, subtract, draw. 5:00 − (0:00 + 3:00) = 2:00." },
           { "time": 5600, "value": "One write. No drift, no catch-up, no reconciliation on startup." } ] },
       { "id": "verdict2", "target": "f4-verdict2", "property": "text",
@@ -1381,7 +1381,7 @@ paused    remaining = Duration -  Accumulated</code></pre>
   The display has to tick even though nothing changes, and that is where the timer
   touches the layer rules. <code>NoteTimerViewModel</code> drives it with
   <code>TimeProvider.CreateTimer</code>, which is BCL and therefore allowed in
-  <code>SmartNotes.ViewModels</code> — a <code>DispatcherTimer</code> would have
+  <code>YappyNotes.ViewModels</code> — a <code>DispatcherTimer</code> would have
   been an Avalonia type and would have failed <code>ArchitectureTests</code>. Its
   callback arrives on a thread-pool thread, and an Avalonia binding must be
   updated on the UI thread, so the hop back goes through <code>IUiDispatcher</code>,
@@ -1449,7 +1449,7 @@ paused    remaining = Duration -  Accumulated</code></pre>
       <rect class="dg-box" x="272" y="16" width="220" height="70" rx="8"/>
       <rect data-tinyfly="f5-hl-iface" class="dg-hl" x="272" y="16" width="220" height="70" rx="8" fill="#3b82f6" opacity="0"/>
       <text class="dg-mono" x="382" y="40" text-anchor="middle">INoteRepository</text>
-      <text class="dg-sub"  x="382" y="58" text-anchor="middle">SmartNotes.Core — six async methods</text>
+      <text class="dg-sub"  x="382" y="58" text-anchor="middle">YappyNotes.Core — six async methods</text>
       <text data-tinyfly="f5-new" class="dg-mono-d" x="382" y="78" text-anchor="middle" opacity="1">+ CountAsync()</text>
     </g>
 
@@ -1459,7 +1459,7 @@ paused    remaining = Duration -  Accumulated</code></pre>
       <rect class="dg-panel" x="232" y="110" width="300" height="84" rx="8"/>
       <rect data-tinyfly="f5-hl-contract" class="dg-hl" x="232" y="110" width="300" height="84" rx="8" fill="#f59e0b" opacity="0"/>
       <text class="dg-mono"  x="382" y="134" text-anchor="middle">NoteRepositoryContract</text>
-      <text class="dg-sub"   x="382" y="152" text-anchor="middle">tests/SmartNotes.TestKit</text>
+      <text class="dg-sub"   x="382" y="152" text-anchor="middle">tests/YappyNotes.TestKit</text>
       <text data-tinyfly="f5-facts" class="dg-label" x="382" y="176" text-anchor="middle">27 [Fact] methods, one per rule</text>
     </g>
 
@@ -1580,21 +1580,22 @@ paused    remaining = Duration -  Accumulated</code></pre>
 </p>
 
 <ul>
-  <li><code>src/SmartNotes.Core/Note.cs</code> and <code>NoteTimer.cs</code> — the
+  <li><code>src/YappyNotes.Core/Note.cs</code> and <code>NoteTimer.cs</code> — the
       whole domain, and the two files where the reasoning above is written down as
       XML doc comments.</li>
-  <li><code>src/SmartNotes.Core/INoteRepository.cs</code>, then
-      <code>tests/SmartNotes.TestKit/NoteRepositoryContract.cs</code> — the
+  <li><code>src/YappyNotes.Core/INoteRepository.cs</code>, then
+      <code>tests/YappyNotes.TestKit/NoteRepositoryContract.cs</code> — the
       interface and its definition.</li>
-  <li><code>src/SmartNotes.Core/NoteService.cs</code> and
+  <li><code>src/YappyNotes.Core/NoteService.cs</code> and
       <code>AutoSaveService.cs</code> — the policy.</li>
-  <li><code>src/SmartNotes.Data/Migrator.cs</code> — the schema, as the two SQL
+  <li><code>src/YappyNotes.Data/Migrator.cs</code> — the schema, as the two SQL
       steps that made it.</li>
-  <li><code>src/SmartNotes.ViewModels/NoteViewModel.cs</code> and
+  <li><code>src/YappyNotes.ViewModels/NoteViewModel.cs</code> and
       <code>NoteTimerViewModel.cs</code> — everything the window binds to.</li>
-  <li><code>src/SmartNotes.App/AppServices.cs</code> — the composition root, and
-      the only file in <code>SmartNotes.App</code> that names
-      <code>SmartNotes.Data</code> at all.</li>
+  <li><code>src/YappyNotes.App/AppServices.cs</code> — the composition root, and
+      the only C# file in <code>YappyNotes.App</code> that names
+      <code>YappyNotes.Data</code> at all — the project reference itself lives in
+      the <code>.csproj</code>, as it must.</li>
 </ul>
 
 <p>
@@ -1615,11 +1616,11 @@ paused    remaining = Duration -  Accumulated</code></pre>
   happens, which is exactly why it is worth knowing about.
 </p>
 
-<pre><code>dotnet build smartnotes.sln
-dotnet test  smartnotes.sln
-dotnet format smartnotes.sln
+<pre><code>dotnet build yappynotes.sln
+dotnet test  yappynotes.sln
+dotnet format yappynotes.sln
 
-dotnet watch test --project tests/SmartNotes.Core.Tests   # the fast ones
+dotnet watch test --project tests/YappyNotes.Core.Tests   # the fast ones
 scripts/dev-start.sh --sandbox                            # a throwaway database</code></pre>
 
 <p>
