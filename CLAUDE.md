@@ -214,6 +214,16 @@ ticker that *did* ask for a save would still never produce one, and the first
 version of that test passed against the bug. `Ticking_ForAnHour_NeverAsksForAWrite`
 asserts against the transition callback instead.
 
+**A finished countdown reads 0:00 and turns red; it does not count past zero.**
+It showed the overrun as "-2:05" at first and that reads as a fault, reported
+from real use. `RemainingAt` still goes negative because `HasFinishedAt` needs
+the sign — the clamp is in `DisplayAt` only. The colour is what distinguishes a
+finished timer from one that has not started, so do not drop it while keeping the
+clamp.
+
+**The timer's settings show only while it is stopped** (`CanEdit`). Moving the
+finish line halfway through a countdown is a way to be confused.
+
 **Links are offered beside a note, not inside it.** The body is an editable
 `TextBox`, which draws plain text and nothing else. `LinkScanner`'s allow-list —
 http, https, mailto — is checked when the link is found *and* again in
