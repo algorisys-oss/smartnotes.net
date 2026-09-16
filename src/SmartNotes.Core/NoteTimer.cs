@@ -59,31 +59,47 @@ public sealed class NoteTimer
             : Accumulated;
 
     /// <summary>
-    /// How much of a countdown is left. Goes negative once it has overrun, which
-    /// is deliberate: being two minutes late back is worth knowing.
+    /// How much of a countdown is left, which goes negative once it has overrun.
     /// </summary>
+    /// <remarks>
+    /// The raw value, because <see cref="HasFinishedAt"/> needs the sign. What is
+    /// shown does not go below zero - see <see cref="DisplayAt"/>.
+    /// </remarks>
     public TimeSpan RemainingAt(DateTimeOffset now) => Duration - ElapsedAt(now);
 
     public bool HasFinishedAt(DateTimeOffset now)
         => Direction == TimerDirection.CountDown && RemainingAt(now) <= TimeSpan.Zero;
 
-    /// <summary>The counter as it should read on screen.</summary>
+    /// <summary>
+    /// The counter as it should read on screen.
+    /// </summary>
+    /// <remarks>
+    /// A finished countdown reads 0:00 and stays there rather than counting into
+    /// negative numbers. It did show the overrun at first, on the theory that
+    /// knowing how late you are back is useful; it reads as a fault instead, so
+    /// it stops. <see cref="HasFinishedAt"/> is how anything that cares tells a
+    /// finished timer from one that has not started.
+    /// </remarks>
     public string DisplayAt(DateTimeOffset now)
     {
-        var value = Direction == TimerDirection.CountDown ? RemainingAt(now) : ElapsedAt(now);
-        var sign = value < TimeSpan.Zero ? "-" : string.Empty;
-        var magnitude = value < TimeSpan.Zero ? -value : value;
+        var value = Direction == TimerDirection.CountDown
+            ? Max(RemainingAt(now), TimeSpan.Zero)
+            : ElapsedAt(now);
+
+        var magnitude = value;
 
         return magnitude.TotalHours >= 1
             ? string.Format(
                 CultureInfo.InvariantCulture,
-                "{0}{1}:{2:00}:{3:00}",
-                sign, (int)magnitude.TotalHours, magnitude.Minutes, magnitude.Seconds)
+                "{0}:{1:00}:{2:00}",
+                (int)magnitude.TotalHours, magnitude.Minutes, magnitude.Seconds)
             : string.Format(
                 CultureInfo.InvariantCulture,
-                "{0}{1}:{2:00}",
-                sign, (int)magnitude.TotalMinutes, magnitude.Seconds);
+                "{0}:{1:00}",
+                (int)magnitude.TotalMinutes, magnitude.Seconds);
     }
+
+    private static TimeSpan Max(TimeSpan left, TimeSpan right) => left > right ? left : right;
 
     /// <summary>
     /// Begins, or picks up again after a pause. Starting one that is already

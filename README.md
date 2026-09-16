@@ -7,10 +7,11 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
-> **Status: Milestone 5 done.** Notes now do something: a note can carry a stream
+> **Status: Milestone 5 done, plus timer customisation.** Notes now do something: a note can carry a stream
 > timer — a countdown for "back in 5:00" or a count-up for how long you have been
 > live — that pauses, resumes and restarts, and survives closing the app. Links in
-> a note's text are offered beside it, http/https/mailto only. 287 green tests.
+> a note's text are offered beside it, http/https/mailto only. The timer's label,
+> length and direction are editable while it is stopped. 305 green tests.
 >
 > **Milestone 4 before it — the MMF — is complete.** Notes live on the desktop
 > as their own borderless windows: draggable, resizable, pinnable, recolourable,

@@ -51,13 +51,73 @@ public sealed partial class NoteTimerViewModel : ObservableObject, IDisposable
         }
     }
 
-    public string Label => _timer.Label;
+    /// <summary>The shortest countdown worth having.</summary>
+    private const int ShortestMinutes = 1;
+
+    /// <summary>What the counter is for. Renaming it is a change worth keeping.</summary>
+    public string Label
+    {
+        get => _timer.Label;
+        set => Change(value, _timer.Label, v => _timer.Label = v);
+    }
+
+    /// <summary>
+    /// How long a countdown runs for, in whole minutes.
+    /// </summary>
+    /// <remarks>
+    /// Held at one minute or more: a countdown of zero is finished before it is
+    /// started, which looks like a bug rather than a choice.
+    /// </remarks>
+    public int DurationMinutes
+    {
+        get => (int)_timer.Duration.TotalMinutes;
+        set => Change(
+            Math.Max(ShortestMinutes, value),
+            DurationMinutes,
+            v => _timer.Duration = TimeSpan.FromMinutes(v));
+    }
+
+    public bool IsCountingDown => _timer.Direction == TimerDirection.CountDown;
+
+    /// <summary>
+    /// Whether the length and direction may be changed. Not while it is running:
+    /// moving the finish line halfway through is a way to be confused rather than
+    /// a feature.
+    /// </summary>
+    public bool CanEdit => !_timer.IsRunning;
+
+    /// <summary>Durations a stream break actually tends to be.</summary>
+    public IReadOnlyList<int> DurationPresets { get; } = [5, 10, 15, 30];
 
     public string Display => _timer.DisplayAt(_timeProvider.GetUtcNow());
 
     public bool IsRunning => _timer.IsRunning;
 
     public bool HasFinished => _timer.HasFinishedAt(_timeProvider.GetUtcNow());
+
+    /// <summary>Counts up instead of down, or back again.</summary>
+    [RelayCommand]
+    public void ToggleDirection() => Transition(_ => _timer.Direction =
+        _timer.Direction == TimerDirection.CountDown ? TimerDirection.CountUp : TimerDirection.CountDown);
+
+    [RelayCommand]
+    public void SetDuration(int minutes) => DurationMinutes = minutes;
+
+    /// <summary>
+    /// Changes a stored field, and only asks for a write when something actually
+    /// changed - the same rule every other setter in the app follows.
+    /// </summary>
+    private void Change<T>(T value, T current, Action<T> assign)
+    {
+        if (EqualityComparer<T>.Default.Equals(current, value))
+        {
+            return;
+        }
+
+        assign(value);
+        Redraw();
+        _onTransition();
+    }
 
     [RelayCommand]
     public void Start() => Transition(now => _timer.Start(now));
@@ -123,5 +183,9 @@ public sealed partial class NoteTimerViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Display));
         OnPropertyChanged(nameof(IsRunning));
         OnPropertyChanged(nameof(HasFinished));
+        OnPropertyChanged(nameof(Label));
+        OnPropertyChanged(nameof(DurationMinutes));
+        OnPropertyChanged(nameof(IsCountingDown));
+        OnPropertyChanged(nameof(CanEdit));
     }
 }

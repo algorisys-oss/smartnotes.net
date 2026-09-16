@@ -117,4 +117,96 @@ public class NoteTimerWindowTests
 
         Assert.True(header.Bounds.Width > 50);
     }
+
+    [AvaloniaFact]
+    public void TimerBar_WhileStopped_OffersTheSettings()
+    {
+        var window = OpenWindow(withTimer: true);
+
+        Assert.True(window.FindControl<WrapPanel>("TimerEditRow")!.IsVisible);
+        Assert.True(window.FindControl<NumericUpDown>("TimerMinutes")!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void TimerBar_OnceRunning_HidesTheSettings()
+    {
+        // Moving the finish line halfway through is a way to be confused.
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+
+        note.Timer!.StartCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.False(window.FindControl<WrapPanel>("TimerEditRow")!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void TimerMinutes_WhenTyped_ChangesTheCount()
+    {
+        var window = OpenWindow(withTimer: true);
+
+        window.FindControl<NumericUpDown>("TimerMinutes")!.Value = 12;
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("12:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void TimerLabel_WhenRenamed_ReachesTheNote()
+    {
+        var window = OpenWindow(withTimer: true);
+
+        window.FindControl<TextBox>("TimerLabel")!.Text = "Grabbing coffee";
+        Dispatcher.UIThread.RunJobs();
+
+        var note = (NoteViewModel)window.DataContext!;
+        Assert.Equal("Grabbing coffee", note.Timer!.Label);
+    }
+
+    [AvaloniaFact]
+    public void TimerDirectionToggle_SwitchesToCountingUp()
+    {
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+
+        window.FindControl<Button>("TimerDirectionToggle")!.Command!.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.False(note.Timer!.IsCountingDown);
+        Assert.Equal("0:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void TimerMinutes_WhenCountingUp_IsNotOffered()
+    {
+        // There is no length to set on something that counts up.
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+
+        note.Timer!.ToggleDirectionCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.False(window.FindControl<NumericUpDown>("TimerMinutes")!.IsVisible);
+    }
+
+    /// <summary>
+    /// The count stops at 0:00, so the colour is what says a break is over
+    /// rather than not yet started.
+    /// </summary>
+    [AvaloniaFact]
+    public void TimerDisplay_OnceTheCountdownRunsOut_ChangesColour()
+    {
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+        var display = window.FindControl<TextBlock>("TimerDisplay")!;
+        var beforeFinishing = display.Foreground?.ToString();
+
+        note.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(6));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("0:00", display.Text);
+        Assert.True(note.Timer.HasFinished);
+        Assert.NotEqual(beforeFinishing, display.Foreground?.ToString());
+    }
 }

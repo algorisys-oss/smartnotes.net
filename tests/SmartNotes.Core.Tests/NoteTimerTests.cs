@@ -180,16 +180,29 @@ public class NoteTimerTests
     }
 
     /// <summary>
-    /// Overrunning a break is worth seeing rather than hiding at 0:00 - knowing
-    /// you are two minutes over is the point of having it on screen.
+    /// A finished countdown sits at 0:00. It used to show the overrun as
+    /// "-2:05", which reads as a fault rather than as information.
     /// </summary>
     [Fact]
-    public void DisplayAt_PastTheEndOfACountdown_ShowsHowFarOver()
+    public void DisplayAt_PastTheEndOfACountdown_StaysAtZero()
     {
         var timer = FiveMinuteBreak();
         timer.Start(Noon);
 
-        Assert.Equal("-2:05", timer.DisplayAt(Noon.AddMinutes(7).AddSeconds(5)));
+        Assert.Equal("0:00", timer.DisplayAt(Noon.AddMinutes(7).AddSeconds(5)));
+        Assert.Equal("0:00", timer.DisplayAt(Noon.AddHours(4)));
+    }
+
+    [Fact]
+    public void RemainingAt_PastTheEnd_StillGoesNegativeSoFinishedCanBeTold()
+    {
+        // The display clamps; the arithmetic must not, or a finished countdown
+        // would be indistinguishable from one sitting exactly on zero.
+        var timer = FiveMinuteBreak();
+        timer.Start(Noon);
+
+        Assert.True(timer.RemainingAt(Noon.AddMinutes(7)) < TimeSpan.Zero);
+        Assert.True(timer.HasFinishedAt(Noon.AddMinutes(7)));
     }
 
     [Fact]
