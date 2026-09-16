@@ -48,6 +48,7 @@ deleted by whoever inherits it.
 
 ## Where the tests live, and how fast they run
 
+    tests/SmartNotes.TestKit/            the fake and the repository contract
     tests/SmartNotes.Core.Tests/         domain, services, UserPaths
     tests/SmartNotes.Data.Tests/         migrations, SqliteNoteRepository
     tests/SmartNotes.ViewModels.Tests/   ManagerViewModel, NoteViewModel
@@ -58,11 +59,15 @@ too. Core and ViewModels tests touch no disk and no UI; they are the ones you ru
 on every save, and if they stop being fast something has leaked into a layer that
 should not have it.
 
-`InMemoryNoteRepository` lives in `SmartNotes.Core.Tests` and is the fake every
-layer above Data is tested against. It is real code with real behaviour — it
+`InMemoryNoteRepository` lives in `SmartNotes.TestKit` — a library, not a test
+project, because Core.Tests, Data.Tests and ViewModels.Tests all need it. It is
+the fake every layer above Data is tested against. It is real code with real behaviour — it
 enforces the same "id must be unique" rule the SQL does — not a mock framework
 recording calls. When Data and the fake disagree, one of them is wrong and the
-suite should say which.
+suite should say which — which is what `NoteRepositoryContract` in the same
+project is for. It holds every rule an `INoteRepository` must follow and is
+derived once per implementation, so a new method goes in the contract first and
+both implementations have to answer it.
 
 Data tests get a real SQLite file in a temp directory, created and deleted per
 test class. Not `:memory:` — the app ships against a file, and the differences

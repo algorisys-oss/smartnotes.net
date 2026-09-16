@@ -121,8 +121,10 @@ Dependencies run one way, and nothing points back:
   `AppSettings`, the `INoteRepository` contract, and the services that hold
   policy: `NoteService`, `AutoSaveService`, `SettingsService`, plus `UserPaths`.
   It references nothing but the BCL. This is where most of the tests live.
-- **`SmartNotes.Data`** — `SqliteNoteRepository`, the connection factory, and
-  `Migrator`. The only project that knows SQL exists.
+- **`SmartNotes.Data`** — `SqliteNoteRepository`, `NoteDatabase` (the connection
+  factory — not named `SqliteConnectionFactory`, because Microsoft.Data.Sqlite
+  has an internal type by that name and the collision compiles into a baffling
+  "inaccessible due to its protection level"), and `Migrator`. The only project that knows SQL exists.
 - **`SmartNotes.ViewModels`** — `ManagerViewModel`, `NoteViewModel`, and the
   `IWindowManager` interface they call through. CommunityToolkit.Mvvm only; no
   Avalonia reference, enforced by the csproj.
