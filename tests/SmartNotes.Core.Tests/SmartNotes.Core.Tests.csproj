@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SmartNotes.Core\SmartNotes.Core.csproj" />
+    <ProjectReference Include="..\SmartNotes.TestKit\SmartNotes.TestKit.csproj" />
   </ItemGroup>
 
 </Project>

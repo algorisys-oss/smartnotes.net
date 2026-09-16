@@ -32,6 +32,32 @@ public sealed class Note
     public DateTimeOffset ModifiedUtc { get; set; }
 
     /// <summary>
+    /// An independent copy, so that handing a note across a boundary does not
+    /// hand over the ability to change it.
+    /// </summary>
+    /// <remarks>
+    /// A repository round-trips by value - SQLite has no choice about that, and
+    /// the in-memory fake has to match it or the tests it backs would pass for
+    /// reasons the app does not share. Editing a note in a window and then
+    /// discarding the edit wants the same thing.
+    /// </remarks>
+    public Note Copy() => new()
+    {
+        Id = Id,
+        CreatedUtc = CreatedUtc,
+        Title = Title,
+        Content = Content,
+        Color = Color,
+        X = X,
+        Y = Y,
+        Width = Width,
+        Height = Height,
+        IsAlwaysOnTop = IsAlwaysOnTop,
+        IsArchived = IsArchived,
+        ModifiedUtc = ModifiedUtc,
+    };
+
+    /// <summary>
     /// A new, empty note stamped with the current time.
     /// </summary>
     /// <remarks>
