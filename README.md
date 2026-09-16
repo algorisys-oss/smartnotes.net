@@ -33,6 +33,7 @@ repository over SQLite.
 | File | What it is |
 | --- | --- |
 | [docs/plan.md](docs/plan.md) | What we are building, the architecture review, the milestones |
+| [docs/architecture.html](docs/architecture.html) | The architecture with animated diagrams — open it in a browser |
 | [LOOP.md](LOOP.md) | How we build it — the TDD loop and its rules |
 | [TODO.md](TODO.md) | Noticed since the plan was written; not scheduled yet |
 | [docs/sticky-notes-architecture.md](docs/sticky-notes-architecture.md) | The original whiteboard design, transcribed |
