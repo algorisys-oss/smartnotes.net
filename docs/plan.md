@@ -369,6 +369,17 @@ entirely tests, and it is the one that decides whether the rest is pleasant.
 note comes back where it was. That is MMF items 1–3 and the first moment the
 thing is real.
 
+**Moving and resizing are part of this milestone**, and are written down because
+they were not the first time. A borderless window gets no frame from the OS and
+therefore no title bar to drag and no resize handles either, so both are ours to
+provide: a title strip that calls `BeginMoveDrag`, and a corner grip that calls
+`BeginResizeDrag`. MMF 3 promises a note comes back "at the same size", which
+means nothing unless a reader could choose one.
+
+The trap, found the hard way: a control placed in the title strip fills its cell
+and marks presses handled, leaving nowhere to grab the window by. Keep the strip
+clear - `NoteWindowDragTests` samples across it and fails if it is not.
+
 ### Milestone 3 — The manager
 
 `ManagerViewModel`, `ManagerWindow`, search, the note list, archive and restore.

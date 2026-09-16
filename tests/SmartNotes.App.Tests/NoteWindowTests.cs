@@ -103,8 +103,13 @@ public class NoteWindowTests
         Assert.Equal(writesBefore, _counting.Updates);
     }
 
+    /// <summary>
+    /// The persistence, not the gesture: this sets the size directly, the way the
+    /// window manager does at the end of a real resize drag. Whether a reader can
+    /// start one is NoteWindowDragTests' question.
+    /// </summary>
     [AvaloniaFact]
-    public async Task NoteWindow_ResizedByTheReader_RemembersTheNewSize()
+    public async Task NoteWindow_WhenItsSizeChanges_WritesTheNewSizeToTheNote()
     {
         var viewModel = NewViewModel();
         var window = new NoteWindow(viewModel);
