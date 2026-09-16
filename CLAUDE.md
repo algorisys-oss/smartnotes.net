@@ -279,6 +279,23 @@ which target 11. Probe the assembly rather than trusting a snippet.
 `x:Name` on a `ColumnDefinition` or `RowDefinition` generates no field. Name the
 `Grid` and index into `ColumnDefinitions`.
 
+**Keep the note's title strip clear of controls.** A borderless window has no
+title bar, so the strip is what `BeginMoveDrag` is wired to — and any control put
+in it fills its cell and marks presses handled, leaving nowhere to pick the note
+up by. The title `TextBox` is `IsHitTestVisible="False"` until you double-click
+to rename. `NoteWindowDragTests` samples twenty points across the strip and fails
+if fewer than half are free.
+
+**Resizing is ours too.** No decorations means no OS resize handles, so
+`ResizeGrip` in the bottom corner calls `BeginResizeDrag(WindowEdge.SouthEast)`.
+Without it a note is stuck at the size it was created.
+
+**A headless test that measures layout must force a layout pass first.**
+`Dispatcher.UIThread.RunJobs()` after `Show()`. Every `Bounds` is empty until
+then, so a test sampling points inside a control reports success while measuring
+nothing — which is exactly how the drag tests first passed against the bug they
+exist to catch. Assert the bounds are non-empty before relying on them.
+
 **Do not drive a view-model from a control's change event when a binding writes
 the same property.** The event and the binding have no guaranteed order, so the
 handler runs against the previous value — the manager's search was a keystroke

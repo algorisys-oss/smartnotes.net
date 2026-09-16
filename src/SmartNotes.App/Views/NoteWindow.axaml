@@ -59,9 +59,16 @@
               ColumnDefinitions="*,Auto,Auto"
               Background="{Binding Color, Converter={x:Static app:NoteBrushes.Edge}}">
 
+            <!-- Not hit-testable until you double-click it. A TextBox fills its
+                 whole cell and marks a press handled for caret placement, so
+                 while it is in the way there is nowhere on this strip left to
+                 grab the window by - which is exactly the bug this replaced.
+                 NoteWindow.axaml.cs turns it back on to edit. -->
             <TextBox Grid.Column="0"
+                     x:Name="TitleBox"
                      Text="{Binding Title}"
                      PlaceholderText="Title"
+                     IsHitTestVisible="False"
                      BorderThickness="0"
                      Background="Transparent"
                      Foreground="#222"
@@ -102,6 +109,21 @@
                  Foreground="#1a1a1a"
                  Padding="8"
                  VerticalAlignment="Stretch" />
+
+        <!-- WindowDecorations="None" means the OS draws no frame and therefore
+             no resize handles either. This corner is the only way to resize a
+             note, so it stays on top of the body text. -->
+        <Panel Grid.Row="1"
+               x:Name="ResizeGrip"
+               Width="16" Height="16"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Bottom"
+               Background="Transparent"
+               Cursor="BottomRightCorner">
+            <Path Data="M 11,15 L 15,11 M 6,15 L 15,6 M 1,15 L 15,1"
+                  Stroke="#70000000"
+                  StrokeThickness="1" />
+        </Panel>
     </Grid>
     </Border>
 </Window>

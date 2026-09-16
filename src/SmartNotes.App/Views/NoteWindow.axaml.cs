@@ -33,6 +33,20 @@ public partial class NoteWindow : Window
             header.PointerPressed += OnHeaderPressed;
         }
 
+        var grip = this.FindControl<Panel>("ResizeGrip");
+        if (grip is not null)
+        {
+            grip.PointerPressed += OnResizeGripPressed;
+        }
+
+        var titleBox = this.FindControl<TextBox>("TitleBox");
+        if (titleBox is not null)
+        {
+            // Editing ends when the title loses focus, and the strip goes back
+            // to being something you can pick the window up by.
+            titleBox.LostFocus += (_, _) => titleBox.IsHitTestVisible = false;
+        }
+
         // Window exposes no styled property for its position, so this is the
         // only way to hear about a drag finishing somewhere new.
         PositionChanged += OnPositionChanged;
@@ -95,18 +109,55 @@ public partial class NoteWindow : Window
 
     private void OnCloseClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
 
+    /// <summary>
+    /// The strip is how you pick a note up, and - on a double-click - how you
+    /// rename it.
+    /// </summary>
+    /// <remarks>
+    /// The buttons in the strip mark their own presses handled, and this is
+    /// attached for unhandled events only, so pressing one never starts a drag.
+    /// Checking <c>e.Source</c> for a Button or a TextBox would not have worked:
+    /// the source is the template part under the pointer - a ContentPresenter, a
+    /// TextPresenter - and never the control itself.
+    /// </remarks>
     private void OnHeaderPressed(object? sender, PointerPressedEventArgs e)
     {
-        // Dragging the strip moves the window; the title box inside it still gets
-        // its own clicks, so only a press on the strip itself starts a drag.
-        if (e.Source is TextBox or Button)
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
             return;
         }
 
+        if (e.ClickCount == 2)
+        {
+            BeginEditingTitle();
+            return;
+        }
+
+        BeginMoveDrag(e);
+    }
+
+    private void BeginEditingTitle()
+    {
+        var titleBox = this.FindControl<TextBox>("TitleBox");
+        if (titleBox is null)
+        {
+            return;
+        }
+
+        titleBox.IsHitTestVisible = true;
+        titleBox.Focus();
+        titleBox.SelectAll();
+    }
+
+    /// <summary>
+    /// The corner grip. A window with no decorations gets no resize handles from
+    /// the OS, so without this a note is stuck at whatever size it was created.
+    /// </summary>
+    private void OnResizeGripPressed(object? sender, PointerPressedEventArgs e)
+    {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            BeginMoveDrag(e);
+            BeginResizeDrag(WindowEdge.SouthEast, e);
         }
     }
 
