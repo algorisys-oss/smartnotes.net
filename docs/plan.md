@@ -11,8 +11,11 @@ build and why.
 
 A note you open is a window on your desktop, not a row in a list. It stays where
 you put it, it looks the way you left it, and it is still there after a reboot.
-Nothing is ever saved by pressing a button. There is no account, no sync and no
-network — the whole product is one SQLite file you could copy to a USB stick.
+Nothing is ever saved by pressing a button. There is no account and no sync — the
+whole product is one SQLite file you could copy to a USB stick. The network is
+used for exactly one thing: asking GitHub whether a newer release exists, on by
+default and switched off in Settings. That was "no network" until self-updating
+was asked for, and it was changed on purpose rather than drifted into.
 
 The bar for "done" is that someone uses it instead of the sticky notes app their
 OS already ships.
@@ -463,6 +466,14 @@ inlines can carry a click handler for a link (Milestone 5's link chips may still
 be the better interaction), and how editing feels when the note is a couple of
 hundred words — a swap that loses the caret position will be noticed immediately.
 
+#### Self-updating — done, and not in the original plan
+
+Asked for after the tray icon. An installed copy checks GitHub releases on start
+through Velopack, downloads a newer one, and the tray offers a restart into it.
+Velopack over a hand-rolled download-and-swap, because replacing a running app
+differs on all three platforms and Windows will not overwrite a running `.exe` at
+all. The restart quits through the app's own flushing shutdown; see `CLAUDE.md`.
+
 #### A tray icon — done
 
 What follows was the plan, and it held. What was learned building it is in
@@ -489,8 +500,10 @@ still sitting in a debounce, and losing that would lose the last thing typed.
 
 None of these is an oversight:
 
-- **Sync** is rejected rather than deferred. "No account, no sync and no network"
-  is a product goal, not a gap — it is what lets the whole app be one file.
+- **Sync** is rejected rather than deferred. "No account and no sync" is a product
+  goal, not a gap — it is what lets the whole app be one file. The update check
+  does not open that door: it sends nothing about the notes, and it reads a
+  public release list.
 - **Export to Markdown or PDF.** Nearly free once the body *is* Markdown, so it
   belongs after rich text rather than beside it.
 - **Images.** A sticky note is for a sentence you will act on this afternoon.

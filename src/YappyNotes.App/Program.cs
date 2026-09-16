@@ -13,8 +13,11 @@ internal static class Program
         // First, before anything reads the arguments. An installer starts the app
         // with its own (--veloapp-install and friends) to run a hook and exit, and
         // CommandLine would answer those as unknown arguments with exit code 2.
-        // It also applies an update downloaded but not yet restarted into.
-        VelopackApp.Build().Run();
+        // On a normal start it also installs an update that was downloaded but
+        // never restarted into.
+        VelopackApp.Build()
+            .SetAutoApplyOnStartup(CommandLine.MayApplyUpdates(args))
+            .Run();
 
         // Before Avalonia, so that a question can be answered on a machine with
         // no display - which is how the release workflow proves the packaged

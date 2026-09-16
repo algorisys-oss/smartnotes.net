@@ -34,7 +34,8 @@ recolourable windows, autosaved and restored; the manager lists, searches and
 archives; there is a settings window, keyboard shortcuts, CI and packaging for
 six runtime identifiers. On top of that, a note can carry a stream timer that
 counts down or up, and the links in its text are offered beside it. The app
-lives in the tray and outlives its windows. 363 green tests.
+lives in the tray and outlives its windows, and an installed copy updates itself
+from GitHub releases through Velopack. 391 green tests.
 
 **What is left of Milestone 6 is rich text**, and it is a separate session's
 work. `docs/plan.md` has the scope, the recommended approach and what was checked
@@ -75,6 +76,9 @@ scripts/dev-start.sh              # the same in Debug, so F12 developer tools ex
 
 # Install a release build for this machine into ~/Desktop/tools/yappynotes
 scripts/deploy-local.sh           # or pass another tools folder
+
+# The self-updating installer for one runtime, packed on its own OS
+scripts/package-installer.sh linux-x64
 ```
 
 Use `--sandbox` before touching the schema. Testing a migration against your own
@@ -101,6 +105,14 @@ files on disk.
 
 `scripts/version.sh` is the only reader of the version, and `VersionPrefix` in
 `Directory.Build.props` the only place it is written.
+
+`scripts/package-installer.sh <rid>` packs Velopack's self-updating installer on
+top of `package.sh --publish-only`, same stdout rule. `vpk` is pinned in
+`dotnet-tools.json` and **packs only for the OS it runs on**, which is why
+`release.yml` has an `installers` job per platform while the archives are all
+cross-built on Linux. The channel is the runtime identifier; every file name
+carries it, which is what lets six sets share one GitHub release. Bump `vpk` and
+the `Velopack` package together.
 
 ## Architecture
 
@@ -294,6 +306,30 @@ The manager is built fresh by `WindowManager.ShowManager` each time it has been
 closed, because Avalonia cannot show a closed window again. Do not "fix" that by
 cancelling the manager's close and hiding it: a window that cancels its close
 cancels the app's shutdown too.
+
+**An installed copy updates itself, and the restart must be the app's own
+shutdown.** `UpdatesViewModel` checks on start (`AppSettings.CheckForUpdates`, on
+by default — the plan's "no network" goal was changed for this, deliberately),
+downloads what it finds, and offers "Restart to update". Velopack's
+`ApplyUpdatesAndRestart` exits the process where it stands, skipping
+`ShutdownRequested` and the flush. So `IUpdater.ApplyOnExit` is
+`WaitExitThenApplyUpdates` and the quit goes through `IAppLifetime`; a test holds
+the order. Three more things, each found by running it rather than reading:
+
+- **`VelopackApp.Run()` is first in `Main`**, before `CommandLine`. An installer
+  starts the app with its own hook arguments, which `CommandLine` would answer as
+  unknown with exit code 2.
+- **Only a normal start applies a pending update** (`CommandLine.MayApplyUpdates`).
+  Applying restarts the app, and it once turned `--version` into an install and a
+  relaunch just to print a number.
+- **`UpdateManager` throws unless a locator is set**, which only `VelopackApp.Run`
+  does. `VelopackUpdater` falls back to the platform default so a test, or
+  anything else, gets "not installed" rather than an exception.
+
+Only a copy installed by a Velopack installer can update; everything else answers
+`CanUpdate` false and never touches the network. `YAPPYNOTES_UPDATE_SOURCE`
+points it at a local folder instead of GitHub, which is how an update is tried end
+to end without publishing a release.
 
 **Migrations are append-only.** `PRAGMA user_version` is the schema number, and
 `Migrator` runs the steps above it in order, each in a transaction. **Never edit a

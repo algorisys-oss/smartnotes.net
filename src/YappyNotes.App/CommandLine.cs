@@ -55,6 +55,21 @@ public static class CommandLine
     }
 
 
+    /// <summary>
+    /// Whether a downloaded update may be installed as this process starts.
+    /// </summary>
+    /// <remarks>
+    /// Only on a normal start. Installing restarts the app, and a start that is
+    /// only answering an argument - or a hook an installer is running - is not
+    /// the moment: it once turned <c>--version</c> into an install and a relaunch
+    /// just to print a number. The update is still there for the next normal start.
+    /// </remarks>
+    public static bool MayApplyUpdates(string[] args)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        return args.Length == 0;
+    }
+
     private static string Help => new StringBuilder()
         .AppendLine("YappyNotes — desktop sticky notes.")
         .AppendLine()
