@@ -37,31 +37,17 @@ public partial class App : Application
     private async Task StartAsync(ManagerWindow manager)
     {
         _services = await AppServices.StartAsync(UserPaths.Resolve());
-        _windows = new WindowManager();
+        _windows = new WindowManager(_services.Notes, _services.AutoSave);
 
-        manager.NewNote = NewNoteAsync;
+        manager.Bind(new ManagerViewModel(_services.Notes, _windows));
 
         // Restore note windows: every note that was on the desktop comes back
         // where it was left.
         foreach (var note in await _services.Notes.GetActiveAsync())
         {
-            _windows.ShowNote(NewViewModel(note));
+            await _windows.ShowNoteAsync(note.Id);
         }
     }
-
-    private async Task NewNoteAsync()
-    {
-        if (_services is null || _windows is null)
-        {
-            return;
-        }
-
-        var note = await _services.Notes.CreateAsync();
-        _windows.ShowNote(NewViewModel(note));
-    }
-
-    private NoteViewModel NewViewModel(Note note)
-        => new(note, _services!.Notes, _services.AutoSave, _windows!);
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {

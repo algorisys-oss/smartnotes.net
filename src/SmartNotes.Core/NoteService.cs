@@ -72,6 +72,20 @@ public sealed class NoteService
     }
 
     /// <summary>
+    /// Archived notes matching the text, oldest first.
+    /// </summary>
+    /// <remarks>
+    /// The archive needs its own search because <see cref="SearchAsync"/>
+    /// deliberately excludes archived notes, so the two cannot simply be
+    /// combined by a caller.
+    /// </remarks>
+    public async Task<IReadOnlyList<Note>> SearchArchivedAsync(string text, CancellationToken cancellationToken = default)
+    {
+        var matches = await _repository.SearchAsync(text, cancellationToken);
+        return matches.Where(note => note.IsArchived).ToList();
+    }
+
+    /// <summary>
     /// What the delete button does. The note keeps its text and can be restored.
     /// </summary>
     /// <exception cref="KeyNotFoundException">The note was never stored.</exception>

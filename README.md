@@ -7,10 +7,10 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
-> **Status: Milestone 2 done.** Notes live on the desktop as their own borderless
-> windows, save themselves as you type, and come back where you left them after a
-> restart. 113 green tests. The manager window has one button for now; searching
-> and the archive arrive in Milestone 3. Start at [LOOP.md](LOOP.md).
+> **Status: Milestone 3 done.** Notes live on the desktop as their own borderless
+> windows, save themselves as you type, and come back where you left them. The
+> manager lists and searches them and holds the archive. 142 green tests.
+> Milestone 4 adds colours, pinning and packaging. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 

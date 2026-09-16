@@ -19,13 +19,14 @@ public class NoteWindowTests
     private readonly CountingNoteRepository _counting;
     private readonly NoteService _notes;
     private readonly AutoSaveService _autoSave;
-    private readonly WindowManager _windows = new();
+    private WindowManager _windows = null!;
 
     public NoteWindowTests()
     {
         _counting = new CountingNoteRepository(_repository);
         _notes = new NoteService(_counting, _clock);
         _autoSave = new AutoSaveService(_notes, _clock, Debounce);
+        _windows = new WindowManager(_notes, _autoSave);
     }
 
     private NoteViewModel NewViewModel(Action<Note>? arrange = null)
@@ -126,8 +127,8 @@ public class NoteWindowTests
         // racing each other's autosave.
         var viewModel = NewViewModel();
 
-        _windows.ShowNote(viewModel);
-        _windows.ShowNote(viewModel);
+        _windows.ShowNoteAsync(viewModel.Id).GetAwaiter().GetResult();
+        _windows.ShowNoteAsync(viewModel.Id).GetAwaiter().GetResult();
 
         Assert.Single(_windows.OpenNotes);
     }
@@ -136,7 +137,7 @@ public class NoteWindowTests
     public void CloseNote_ForAnOpenNote_TakesItsWindowOffTheDesktop()
     {
         var viewModel = NewViewModel();
-        _windows.ShowNote(viewModel);
+        _windows.ShowNoteAsync(viewModel.Id).GetAwaiter().GetResult();
 
         _windows.CloseNote(viewModel.Id);
 
