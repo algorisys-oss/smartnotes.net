@@ -23,10 +23,10 @@ public sealed class SqliteNoteRepositoryTests : NoteRepositoryContract, IDisposa
         Directory.CreateDirectory(_directory);
         var file = Path.Combine(_directory, $"{Guid.CreateVersion7()}.db");
 
-        var factory = new NoteDatabase(file);
-        await new Migrator().MigrateAsync(factory);
+        var database = new NoteDatabase(file);
+        await new Migrator().MigrateAsync(database, TestContext.Current.CancellationToken);
 
-        return new SqliteNoteRepository(factory);
+        return new SqliteNoteRepository(database);
     }
 
     public void Dispose()

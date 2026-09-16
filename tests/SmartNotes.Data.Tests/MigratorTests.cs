@@ -8,51 +8,53 @@ public sealed class MigratorTests : IDisposable
     private readonly string _directory =
         Path.Combine(Path.GetTempPath(), $"smartnotes-migrator-{Guid.CreateVersion7()}");
 
+    private static CancellationToken Token => TestContext.Current.CancellationToken;
+
     private NoteDatabase NewDatabase()
     {
         Directory.CreateDirectory(_directory);
         return new NoteDatabase(Path.Combine(_directory, $"{Guid.CreateVersion7()}.db"));
     }
 
-    private static async Task<object?> ScalarAsync(NoteDatabase factory, string sql)
+    private static async Task<object?> ScalarAsync(NoteDatabase database, string sql)
     {
-        await using var connection = await factory.OpenAsync();
+        await using var connection = await database.OpenAsync(Token);
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
-        return await command.ExecuteScalarAsync();
+        return await command.ExecuteScalarAsync(Token);
     }
 
     [Fact]
     public async Task MigrateAsync_OnAFreshDatabase_CreatesTheNotesTable()
     {
-        var factory = NewDatabase();
+        var database = NewDatabase();
 
-        await new Migrator().MigrateAsync(factory);
+        await new Migrator().MigrateAsync(database, Token);
 
-        Assert.Equal(1L, await ScalarAsync(factory,
+        Assert.Equal(1L, await ScalarAsync(database,
             "select count(*) from sqlite_master where type = 'table' and name = 'notes';"));
     }
 
     [Fact]
     public async Task MigrateAsync_OnAFreshDatabase_CreatesTheSettingsTable()
     {
-        var factory = NewDatabase();
+        var database = NewDatabase();
 
-        await new Migrator().MigrateAsync(factory);
+        await new Migrator().MigrateAsync(database, Token);
 
-        Assert.Equal(1L, await ScalarAsync(factory,
+        Assert.Equal(1L, await ScalarAsync(database,
             "select count(*) from sqlite_master where type = 'table' and name = 'settings';"));
     }
 
     [Fact]
     public async Task MigrateAsync_OnAFreshDatabase_RecordsTheSchemaVersionItReached()
     {
-        var factory = NewDatabase();
+        var database = NewDatabase();
         var migrator = new Migrator();
 
-        await migrator.MigrateAsync(factory);
+        await migrator.MigrateAsync(database, Token);
 
-        Assert.Equal((long)migrator.LatestVersion, await ScalarAsync(factory, "pragma user_version;"));
+        Assert.Equal((long)migrator.LatestVersion, await ScalarAsync(database, "pragma user_version;"));
         Assert.True(migrator.LatestVersion > 0);
     }
 
@@ -61,10 +63,10 @@ public sealed class MigratorTests : IDisposable
     {
         // The app migrates on every start, so this is the ordinary path, not an
         // edge case. A step that ran twice would take the notes with it.
-        var factory = NewDatabase();
-        await new Migrator().MigrateAsync(factory);
+        var database = NewDatabase();
+        await new Migrator().MigrateAsync(database, Token);
 
-        await using (var connection = await factory.OpenAsync())
+        await using (var connection = await database.OpenAsync(Token))
         await using (var insert = connection.CreateCommand())
         {
             insert.CommandText =
@@ -73,13 +75,13 @@ public sealed class MigratorTests : IDisposable
                                    IsAlwaysOnTop, IsArchived, CreatedUtc, ModifiedUtc)
                 values ('an-id', 'kept', '', 'Yellow', 0, 0, 280, 300, 0, 0, '2026-01-01T00:00:00.0000000Z', '2026-01-01T00:00:00.0000000Z');
                 """;
-            await insert.ExecuteNonQueryAsync();
+            await insert.ExecuteNonQueryAsync(Token);
         }
 
-        await new Migrator().MigrateAsync(factory);
+        await new Migrator().MigrateAsync(database, Token);
 
-        Assert.Equal(1L, await ScalarAsync(factory, "select count(*) from notes;"));
-        Assert.Equal("kept", await ScalarAsync(factory, "select Title from notes;"));
+        Assert.Equal(1L, await ScalarAsync(database, "select count(*) from notes;"));
+        Assert.Equal("kept", await ScalarAsync(database, "select Title from notes;"));
     }
 
     [Fact]
@@ -87,11 +89,11 @@ public sealed class MigratorTests : IDisposable
     {
         // Two note windows saving at once is the normal case here, and the
         // default rollback journal makes one of them wait on the other.
-        var factory = NewDatabase();
+        var database = NewDatabase();
 
-        await new Migrator().MigrateAsync(factory);
+        await new Migrator().MigrateAsync(database, Token);
 
-        Assert.Equal("wal", await ScalarAsync(factory, "pragma journal_mode;"));
+        Assert.Equal("wal", await ScalarAsync(database, "pragma journal_mode;"));
     }
 
     [Fact]
@@ -101,9 +103,9 @@ public sealed class MigratorTests : IDisposable
         // it is UserPaths.EnsureCreated rather than this. Written down because
         // the failure is otherwise a puzzling "unable to open database file".
         var missing = Path.Combine(_directory, "not-made-yet", "notes.db");
-        var factory = new NoteDatabase(missing);
+        var database = new NoteDatabase(missing);
 
-        await Assert.ThrowsAsync<SqliteException>(() => new Migrator().MigrateAsync(factory));
+        await Assert.ThrowsAsync<SqliteException>(() => new Migrator().MigrateAsync(database, Token));
     }
 
     public void Dispose()
