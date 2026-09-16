@@ -5,6 +5,7 @@
         x:Class="YappyNotes.App.Views.ManagerWindow"
         x:DataType="vm:ManagerViewModel"
         Title="YappyNotes"
+        Icon="/Assets/yappynotes.png"
         Width="380" Height="560"
         MinWidth="320" MinHeight="360">
 

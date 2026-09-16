@@ -5,6 +5,7 @@
         x:Class="YappyNotes.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="YappyNotes settings"
+        Icon="/Assets/yappynotes.png"
         Width="360" Height="260"
         CanResize="False"
         WindowStartupLocation="CenterOwner">

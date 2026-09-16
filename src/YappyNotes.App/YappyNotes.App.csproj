@@ -4,6 +4,9 @@
     <OutputType>WinExe</OutputType>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <!-- The executable's own icon on Windows. The tray and the windows load the
+         PNG beside it as an Avalonia resource. -->
+    <ApplicationIcon>Assets\yappynotes.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +30,10 @@
     <ProjectReference Include="..\YappyNotes.Core\YappyNotes.Core.csproj" />
     <ProjectReference Include="..\YappyNotes.Data\YappyNotes.Data.csproj" />
     <ProjectReference Include="..\YappyNotes.ViewModels\YappyNotes.ViewModels.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
   <ItemGroup>
