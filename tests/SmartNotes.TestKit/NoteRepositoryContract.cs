@@ -291,4 +291,147 @@ public abstract class NoteRepositoryContract
 
         Assert.Equal(["note one", "note two"], found.Select(n => n.Title));
     }
+
+    [Fact]
+    public async Task InsertAsync_ForANoteWithATimer_BringsTheTimerBackToo()
+    {
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("Break");
+        note.Timer = new NoteTimer
+        {
+            Direction = TimerDirection.CountDown,
+            Duration = TimeSpan.FromMinutes(5),
+            Label = "Back in",
+            StartedAtUtc = Noon,
+            Accumulated = TimeSpan.FromSeconds(42),
+        };
+
+        await repository.InsertAsync(note);
+        var stored = await repository.GetByIdAsync(note.Id);
+
+        Assert.NotNull(stored?.Timer);
+        Assert.Equal(TimerDirection.CountDown, stored.Timer.Direction);
+        Assert.Equal(TimeSpan.FromMinutes(5), stored.Timer.Duration);
+        Assert.Equal("Back in", stored.Timer.Label);
+        Assert.Equal(Noon, stored.Timer.StartedAtUtc);
+        Assert.Equal(TimeSpan.FromSeconds(42), stored.Timer.Accumulated);
+    }
+
+    [Fact]
+    public async Task InsertAsync_ForANoteWithNoTimer_BringsBackNone()
+    {
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("ordinary");
+
+        await repository.InsertAsync(note);
+
+        Assert.Null((await repository.GetByIdAsync(note.Id))!.Timer);
+    }
+
+    [Fact]
+    public async Task InsertAsync_ForAPausedTimer_KeepsItPaused()
+    {
+        // Null StartedAtUtc is what "paused" is, so it has to survive storage.
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("paused");
+        note.Timer = new NoteTimer { StartedAtUtc = null, Accumulated = TimeSpan.FromMinutes(2) };
+
+        await repository.InsertAsync(note);
+        var stored = await repository.GetByIdAsync(note.Id);
+
+        Assert.False(stored!.Timer!.IsRunning);
+        Assert.Equal(TimeSpan.FromMinutes(2), stored.Timer.Accumulated);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_PuttingATimerOnANoteThatHadNone_StoresIt()
+    {
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("gaining a timer");
+        await repository.InsertAsync(note);
+
+        note.Timer = new NoteTimer { Label = "Back in" };
+        await repository.UpdateAsync(note);
+
+        Assert.Equal("Back in", (await repository.GetByIdAsync(note.Id))!.Timer!.Label);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_TakingTheTimerOffANote_ForgetsIt()
+    {
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("losing a timer");
+        note.Timer = new NoteTimer { Label = "Back in" };
+        await repository.InsertAsync(note);
+
+        note.Timer = null;
+        await repository.UpdateAsync(note);
+
+        Assert.Null((await repository.GetByIdAsync(note.Id))!.Timer);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_OnATimerAlreadyStored_ReplacesItRatherThanAddingASecond()
+    {
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("retimed");
+        note.Timer = new NoteTimer { Label = "Back in", Duration = TimeSpan.FromMinutes(5) };
+        await repository.InsertAsync(note);
+
+        note.Timer.Duration = TimeSpan.FromMinutes(10);
+        await repository.UpdateAsync(note);
+
+        Assert.Equal(TimeSpan.FromMinutes(10), (await repository.GetByIdAsync(note.Id))!.Timer!.Duration);
+    }
+
+    /// <summary>
+    /// The timer is the first reference-typed thing on a Note, so this is where a
+    /// shallow Note.Copy would show up: pausing a countdown in one window would
+    /// pause it in the store as well.
+    /// </summary>
+    [Fact]
+    public async Task InsertAsync_ThenPausingTheCallersTimer_DoesNotPauseWhatIsStored()
+    {
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("Break");
+        note.Timer = new NoteTimer { StartedAtUtc = Noon };
+        await repository.InsertAsync(note);
+
+        note.Timer.Pause(Noon.AddMinutes(1));
+
+        Assert.True((await repository.GetByIdAsync(note.Id))!.Timer!.IsRunning);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ThenPausingTheTimerItReturned_DoesNotPauseWhatIsStored()
+    {
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("Break");
+        note.Timer = new NoteTimer { StartedAtUtc = Noon };
+        await repository.InsertAsync(note);
+
+        (await repository.GetByIdAsync(note.Id))!.Timer!.Pause(Noon.AddMinutes(1));
+
+        Assert.True((await repository.GetByIdAsync(note.Id))!.Timer!.IsRunning);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_OnANoteWithATimer_TakesTheTimerWithIt()
+    {
+        var repository = await NewRepositoryAsync();
+        var note = NewNote("doomed");
+        note.Timer = new NoteTimer { Label = "Back in" };
+        await repository.InsertAsync(note);
+
+        await repository.DeleteAsync(note.Id);
+
+        // The same id, deliberately: an orphaned timer row is only visible if
+        // something claims the id it was keyed on. Re-inserting a fresh id would
+        // pass whether or not the timer was cleaned up, which is what the first
+        // version of this test did.
+        var reborn = new Note { Id = note.Id, CreatedUtc = note.CreatedUtc };
+        await repository.InsertAsync(reborn);
+
+        Assert.Null((await repository.GetByIdAsync(reborn.Id))!.Timer);
+    }
 }

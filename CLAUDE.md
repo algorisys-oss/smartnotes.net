@@ -27,7 +27,11 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 4, done — the MMF is complete.** All eight MMF
+**The project is at Milestone 5, done.** Notes now do something: a note can carry
+a stream timer that counts down or up, and the links in its text are offered
+beside it. 287 green tests.
+
+**Milestone 4 before it — the MMF — is complete.** All eight MMF
 items hold: notes are their own draggable, resizable, pinnable, recolourable
 windows, autosaved and restored; the manager lists, searches and archives; there
 is a settings window, keyboard shortcuts, CI, and packaging for six runtime
@@ -201,6 +205,21 @@ looks dirty. This is not style: Milestone 5 puts a running timer on a note, and 
 sweeping saver would write to disk every second forever. See "Review: dynamic
 notes" in `docs/plan.md`, which was agreed before `AutoSaveService` was written
 precisely so this decision would not have to be undone.
+
+**`NoteTimer` stores when the current stretch began and what was banked before
+it, and nothing else.** Start, pause, restart and reset are the only things that
+write; the number on screen is computed from those and `now`. Counting writes
+cannot prove this — a one-second tick keeps resetting a 750 ms debounce, so a
+ticker that *did* ask for a save would still never produce one, and the first
+version of that test passed against the bug. `Ticking_ForAnHour_NeverAsksForAWrite`
+asserts against the transition callback instead.
+
+**Links are offered beside a note, not inside it.** The body is an editable
+`TextBox`, which draws plain text and nothing else. `LinkScanner`'s allow-list —
+http, https, mailto — is checked when the link is found *and* again in
+`AvaloniaLinkLauncher`, deliberately: that second check is the one line where a
+string out of a note reaches the OS shell, and it belongs where the danger is.
+Do not "tidy away" the duplication.
 
 **Anything that ticks is derived, never stored.** A countdown persists the instant
 it started and the time banked before that, and computes what to display from

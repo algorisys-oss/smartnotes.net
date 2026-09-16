@@ -46,6 +46,25 @@ public sealed class Migrator
             Value text not null
         );
         """,
+
+        // 2 - the stream timer. Its own table rather than six nullable columns
+        // on notes: most notes have no timer and should not carry the width, and
+        // the next dynamic element gets its own table the same way.
+        //
+        // Nothing in this row changes while the timer runs. What is stored is
+        // when the current stretch began and what was banked before it; the
+        // number on screen is computed. That is what keeps a ticking note from
+        // being dirty on every tick.
+        """
+        create table note_timers (
+            NoteId       text    not null primary key references notes(Id) on delete cascade,
+            Direction    text    not null,
+            Duration     integer not null,
+            Label        text    not null,
+            StartedAtUtc text    null,
+            Accumulated  integer not null
+        );
+        """,
     ];
 
     /// <summary>The schema version this build expects.</summary>

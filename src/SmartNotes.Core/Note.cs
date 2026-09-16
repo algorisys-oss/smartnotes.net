@@ -29,6 +29,17 @@ public sealed class Note
     public bool IsAlwaysOnTop { get; set; }
     public bool IsArchived { get; set; }
 
+    /// <summary>
+    /// A running counter on this note, if it has one.
+    /// </summary>
+    /// <remarks>
+    /// The first reference-typed thing on a Note, which is why
+    /// <see cref="Copy"/> has to copy it rather than hand over the same object:
+    /// two notes sharing one timer would mean pausing a countdown in a window
+    /// paused it in the database too.
+    /// </remarks>
+    public NoteTimer? Timer { get; set; }
+
     public DateTimeOffset ModifiedUtc { get; set; }
 
     /// <summary>
@@ -55,6 +66,7 @@ public sealed class Note
         IsAlwaysOnTop = IsAlwaysOnTop,
         IsArchived = IsArchived,
         ModifiedUtc = ModifiedUtc,
+        Timer = Timer?.Copy(),
     };
 
     /// <summary>

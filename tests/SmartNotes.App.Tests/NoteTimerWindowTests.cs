@@ -1,0 +1,120 @@
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
+using Microsoft.Extensions.Time.Testing;
+using SmartNotes.App.Views;
+using SmartNotes.Core;
+using SmartNotes.TestKit;
+using SmartNotes.ViewModels;
+
+namespace SmartNotes.App.Tests;
+
+public class NoteTimerWindowTests
+{
+    private static readonly DateTimeOffset Noon =
+        new(2026, 9, 16, 12, 0, 0, TimeSpan.Zero);
+
+    private readonly FakeTimeProvider _clock = new(Noon);
+    private readonly InMemoryNoteRepository _repository = new();
+    private readonly NoteService _notes;
+    private readonly AutoSaveService _autoSave;
+
+    public NoteTimerWindowTests()
+    {
+        _notes = new NoteService(_repository, _clock);
+        _autoSave = new AutoSaveService(_notes, _clock, TimeSpan.FromMilliseconds(750));
+    }
+
+    private NoteWindow OpenWindow(bool withTimer)
+    {
+        var note = _notes.CreateAsync().GetAwaiter().GetResult();
+        if (withTimer)
+        {
+            note.Timer = new NoteTimer { Duration = TimeSpan.FromMinutes(5), Label = "Back in" };
+        }
+
+        var viewModel = new NoteViewModel(
+            note, _notes, _autoSave, new FakeWindowManager(), _clock, new InlineUiDispatcher());
+
+        var window = new NoteWindow(viewModel);
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        return window;
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_ForANoteWithNoTimer_ShowsNoTimerBar()
+    {
+        var window = OpenWindow(withTimer: false);
+
+        Assert.False(window.FindControl<Border>("TimerBar")!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_ForANoteWithATimer_ShowsTheCountAndItsLabel()
+    {
+        var window = OpenWindow(withTimer: true);
+
+        Assert.True(window.FindControl<Border>("TimerBar")!.IsVisible);
+        Assert.Equal("5:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_OnceTheTimerIsStarted_RedrawsTheCountAsTimePasses()
+    {
+        // The binding, not just the view-model: a number that only updates in a
+        // unit test is not a timer anybody can use.
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+        note.Timer!.StartCommand.Execute(null);
+
+        _clock.Advance(TimeSpan.FromSeconds(61));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("3:59", window.FindControl<TextBlock>("TimerDisplay")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void TimerBar_WhileStopped_OffersStartAndNotPause()
+    {
+        var window = OpenWindow(withTimer: true);
+
+        Assert.True(window.FindControl<Button>("TimerStart")!.IsVisible);
+        Assert.False(window.FindControl<Button>("TimerPause")!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void TimerBar_WhileRunning_OffersPauseAndNotStart()
+    {
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+
+        note.Timer!.StartCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.False(window.FindControl<Button>("TimerStart")!.IsVisible);
+        Assert.True(window.FindControl<Button>("TimerPause")!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_WhenATimerIsAddedToAnOpenNote_ShowsTheBar()
+    {
+        var window = OpenWindow(withTimer: false);
+        var note = (NoteViewModel)window.DataContext!;
+
+        note.AddTimerCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(window.FindControl<Border>("TimerBar")!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_WithATimerBar_IsStillMostlyGrabbableByItsTitleStrip()
+    {
+        // The bar is a second row, not a second thing in the title strip.
+        var window = OpenWindow(withTimer: true);
+        var header = window.FindControl<Grid>("Header")!;
+
+        Assert.True(header.Bounds.Width > 50);
+    }
+}
