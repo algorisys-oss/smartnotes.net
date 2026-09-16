@@ -35,7 +35,7 @@ archives; there is a settings window, keyboard shortcuts, CI and packaging for
 six runtime identifiers. On top of that, a note can carry a stream timer that
 counts down or up, and the links in its text are offered beside it. The app
 lives in the tray and outlives its windows, and an installed copy updates itself
-from GitHub releases through Velopack. 391 green tests.
+from GitHub releases through Velopack. 394 green tests.
 
 **What is left of Milestone 6 is rich text**, and it is a separate session's
 work. `docs/plan.md` has the scope, the recommended approach and what was checked
@@ -103,8 +103,9 @@ way, and add new packaging (a `.deb`, an `.app`) by calling it with
 Releases are **not** single-file: Avalonia's native libraries want to be real
 files on disk.
 
-`scripts/version.sh` is the only reader of the version, and `VersionPrefix` in
-`Directory.Build.props` the only place it is written.
+`scripts/version.sh` is the only reader of the version, and `Directory.Build.props`
+the only place it is written: `VersionPrefix`, plus `VersionSuffix` for a
+prerelease.
 
 `scripts/package-installer.sh <rid>` packs Velopack's self-updating installer on
 top of `package.sh --publish-only`, same stdout rule. `vpk` is pinned in
@@ -302,6 +303,11 @@ that together, both checked with a spike rather than read off the API:
   else would end the process. The flush has already happened by then.
   `NoteWindow.HoldsCloseToFlush`.
 
+- **A cancellation reaching the dispatcher after shutdown has begun is ignored**
+  (`ShutdownNoise`), and nothing else is. Avalonia 12.1.2's Linux tray cancels its
+  D-Bus watch before marking itself disposed, and the escaped cancellation aborted
+  the process on quit, intermittently. Take it out once Avalonia fixes that.
+
 The manager is built fresh by `WindowManager.ShowManager` each time it has been
 closed, because Avalonia cannot show a closed window again. Do not "fix" that by
 cancelling the manager's close and hiding it: a window that cancels its close
@@ -401,7 +407,8 @@ phrase means all of this, in order:
    `dotnet format --verify-no-changes` on the solution. Never release from a red
    suite or a dirty tree, and never from a branch.
 2. **Bump `VersionPrefix` in `Directory.Build.props`.** **Minor** unless they say
-   otherwise. That is the only place a version is written: `scripts/version.sh`
+   otherwise, and set `VersionSuffix` (`beta.1`) for a prerelease or empty it for
+   a release. That is the only place a version is written: `scripts/version.sh`
    reads it, the packaging script names the archives from it, and the status bar
    in the manager window shows it — so there is nothing else to keep in step.
 3. **Write that version's notes at the top of `CHANGELOG.md`**, in the voice the
@@ -421,7 +428,9 @@ phrase means all of this, in order:
    built nothing is worse than no tag, because it looks like a release.
 
 A tag with a suffix — `v0.2.0-beta.1` — is published as a prerelease and does not
-take the "latest" slot. That is decided from the tag, not by hand.
+take the "latest" slot. That is decided from the tag, not by hand. The tag has to
+match `scripts/version.sh` exactly, suffix included; `release.yml` fails before
+building anything if it does not.
 
 A tag that fails its smoke jobs publishes nothing, which is the workflow working.
 Fix it, delete the tag locally and on `origin`, and push it again — a version
