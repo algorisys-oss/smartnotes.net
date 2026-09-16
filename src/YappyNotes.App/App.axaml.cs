@@ -11,6 +11,7 @@ public partial class App : Application
 {
     private AppServices? _services;
     private WindowManager? _windows;
+    private bool _shuttingDown;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -25,6 +26,9 @@ public partial class App : Application
             // goes through TryShutdown so that ShutdownRequested still flushes.
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
             desktop.ShutdownRequested += OnShutdownRequested;
+            desktop.Exit += (_, _) => _shuttingDown = true;
+            Avalonia.Threading.Dispatcher.UIThread.UnhandledException +=
+                (_, e) => e.Handled = ShutdownNoise.IsHarmless(e.Exception, _shuttingDown);
 
             _ = StartAsync(desktop);
         }
@@ -75,6 +79,10 @@ public partial class App : Application
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
+        // First, before the early return: the tray is torn down after this
+        // whether or not the services ever started. See ShutdownNoise.
+        _shuttingDown = true;
+
         if (_services is null)
         {
             return;

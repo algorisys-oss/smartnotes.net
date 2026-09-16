@@ -48,7 +48,7 @@ closed, and the repository contract answered twice.
 > An installed copy keeps itself up to date: it checks GitHub on start, downloads
 > a newer release, and offers to restart into it.
 >
-> 391 green tests. Start at [LOOP.md](LOOP.md).
+> 394 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 
@@ -223,7 +223,8 @@ an `.app` bundle would build on.
 **Not single-file.** Avalonia's native libraries want to be real files on disk,
 and a sticky-notes app is not worth the debugging that hiding them invites.
 
-The version comes from `VersionPrefix` in `Directory.Build.props`, read by
+The version comes from `VersionPrefix` in `Directory.Build.props` — plus
+`VersionSuffix` for a prerelease such as `0.2.0-beta.1` — read by
 `scripts/version.sh`. That is the only place it is written down.
 
 ### Installers, and updates

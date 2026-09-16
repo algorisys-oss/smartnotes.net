@@ -27,6 +27,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A tag that disagrees with Directory.Build.props would publish a release
+      # called one version full of files - and an updater - that say another.
+      - name: The tag matches the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          version="$(scripts/version.sh)"
+          if [[ "$tag" != "$version" ]]; then
+            echo "tag v$tag does not match the version in Directory.Build.props, $version" >&2
+            exit 1
+          fi
+
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
