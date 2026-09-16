@@ -341,7 +341,15 @@ and `:focus`. A note rendered as a white form field inside a coloured frame unti
 each state was reached into individually — see `NoteWindow.axaml`'s styles. The
 same shape of problem applies to `Button` and `ContentPresenter#PART_ContentPresenter`.
 
-**The theme variant is pinned to `Light` in `App.axaml`.** A note is always light
+**Anything drawn on note-coloured paper must be scoped to the Light variant.**
+A note row in the manager wraps its content in
+`<ThemeVariantScope RequestedThemeVariant="Light">`, and a note window pins the
+same on itself. Without it, controls inside take the application's variant and
+render pale text on a pastel background — which shipped, and made the Open and
+Archive buttons all but invisible in dark mode. `ManagerListContrastTests` fails
+if the scope goes.
+
+**The theme variant follows the reader's setting in `App.axaml`.** A note is always light
 paper; on a dark desktop Fluent otherwise resolves dark-theme foregrounds onto it.
 
 **`Window` has no styled property for its position.** `PositionChanged` is the

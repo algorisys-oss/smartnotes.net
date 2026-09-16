@@ -64,6 +64,13 @@
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:NoteListItem">
 
+                    <!-- A row is a scrap of the same light paper the note itself
+                         is, whatever theme the manager is in. Without this scope
+                         the buttons inside take the app's variant and render pale
+                         text on a pastel background - invisible in dark mode,
+                         which is exactly what happened. Note windows avoid it by
+                         pinning the same variant on themselves. -->
+                    <ThemeVariantScope RequestedThemeVariant="Light">
                     <Border Margin="0,3"
                             Padding="10,8"
                             CornerRadius="4"
@@ -126,6 +133,7 @@
                             </StackPanel>
                         </Grid>
                     </Border>
+                    </ThemeVariantScope>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
