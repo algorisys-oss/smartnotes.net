@@ -214,14 +214,15 @@ public class NoteTimerViewModelTests
     }
 
     [Fact]
-    public async Task Display_PastTheEnd_KeepsCountingSoYouKnowHowLateYouAre()
+    public async Task Display_PastTheEnd_SitsAtZeroRatherThanGoingNegative()
     {
         var viewModel = await NoteWithTimerAsync();
         viewModel.Timer!.StartCommand.Execute(null);
 
         _clock.Advance(TimeSpan.FromMinutes(7).Add(TimeSpan.FromSeconds(5)));
 
-        Assert.Equal("-2:05", viewModel.Timer.Display);
+        Assert.Equal("0:00", viewModel.Timer.Display);
+        Assert.True(viewModel.Timer.HasFinished);
     }
 
     [Fact]
@@ -261,5 +262,131 @@ public class NoteTimerViewModelTests
         _clock.Advance(TimeSpan.FromMinutes(5));
 
         Assert.Equal(postsAfterDisposing, _ui.Posted);
+    }
+
+    [Fact]
+    public async Task Label_WhenRenamed_ShowsItAndWritesIt()
+    {
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.Label = "Grabbing coffee";
+        await SettleAsync();
+
+        Assert.Equal("Grabbing coffee", viewModel.Timer.Label);
+        Assert.Equal("Grabbing coffee", (await _repository.GetByIdAsync(viewModel.Id, Token))!.Timer!.Label);
+    }
+
+    [Fact]
+    public async Task DurationMinutes_WhenChanged_ChangesWhatTheCountStartsFrom()
+    {
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.DurationMinutes = 12;
+        await SettleAsync();
+
+        Assert.Equal("12:00", viewModel.Timer.Display);
+        Assert.Equal(TimeSpan.FromMinutes(12), (await _repository.GetByIdAsync(viewModel.Id, Token))!.Timer!.Duration);
+    }
+
+    [Fact]
+    public async Task DurationMinutes_SetToWhatItAlreadyIs_WritesNothing()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        await SettleAsync();
+        var writesSoFar = _counting.Updates;
+
+        viewModel.Timer!.DurationMinutes = 5;
+        await SettleAsync();
+
+        Assert.Equal(writesSoFar, _counting.Updates);
+    }
+
+    [Fact]
+    public async Task DurationMinutes_SetToSomethingSilly_IsHeldToSomethingUsable()
+    {
+        // A zero-minute or negative countdown is finished before it starts.
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.DurationMinutes = 0;
+        Assert.True(viewModel.Timer.DurationMinutes >= 1);
+
+        viewModel.Timer.DurationMinutes = -5;
+        Assert.True(viewModel.Timer.DurationMinutes >= 1);
+    }
+
+    [Fact]
+    public async Task ToggleDirectionCommand_TurnsACountdownIntoACountUp()
+    {
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.ToggleDirectionCommand.Execute(null);
+        await SettleAsync();
+
+        Assert.False(viewModel.Timer.IsCountingDown);
+        Assert.Equal("0:00", viewModel.Timer.Display);
+        Assert.Equal(
+            TimerDirection.CountUp,
+            (await _repository.GetByIdAsync(viewModel.Id, Token))!.Timer!.Direction);
+    }
+
+    [Fact]
+    public async Task ToggleDirectionCommand_Twice_IsBackToACountdown()
+    {
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.ToggleDirectionCommand.Execute(null);
+        viewModel.Timer.ToggleDirectionCommand.Execute(null);
+
+        Assert.True(viewModel.Timer.IsCountingDown);
+        Assert.Equal("5:00", viewModel.Timer.Display);
+    }
+
+    [Fact]
+    public async Task CanEdit_WhileTheTimerIsRunning_IsFalse()
+    {
+        // Changing the length of a countdown halfway through it is a way to be
+        // confused rather than a feature.
+        var viewModel = await NoteWithTimerAsync();
+        Assert.True(viewModel.Timer!.CanEdit);
+
+        viewModel.Timer.StartCommand.Execute(null);
+
+        Assert.False(viewModel.Timer.CanEdit);
+    }
+
+    [Fact]
+    public async Task CanEdit_OnceItIsPausedAgain_IsTrue()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        viewModel.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(1));
+
+        viewModel.Timer.PauseCommand.Execute(null);
+
+        Assert.True(viewModel.Timer.CanEdit);
+    }
+
+    [Fact]
+    public async Task SetDurationCommand_WithAPreset_UsesIt()
+    {
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.SetDurationCommand.Execute(15);
+        await SettleAsync();
+
+        Assert.Equal("15:00", viewModel.Timer.Display);
+    }
+
+    [Fact]
+    public async Task DurationMinutes_ChangedWhilePaused_CountsFromTheNewLengthLessWhatWasUsed()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        viewModel.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        viewModel.Timer.PauseCommand.Execute(null);
+
+        viewModel.Timer.DurationMinutes = 10;
+
+        Assert.Equal("8:00", viewModel.Timer.Display);
     }
 }

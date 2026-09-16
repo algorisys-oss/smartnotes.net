@@ -137,19 +137,24 @@
                 BorderBrush="#22000000"
                 BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+                  RowDefinitions="Auto,Auto"
                   DataContext="{Binding Timer}">
 
-                <TextBlock Grid.Column="0"
-                           Text="{Binding Label}"
-                           Foreground="#1A1A1A"
-                           Opacity="0.65"
-                           FontSize="12"
-                           VerticalAlignment="Center" />
+                <TextBox Grid.Column="0"
+                         x:Name="TimerLabel"
+                         Text="{Binding Label}"
+                         PlaceholderText="Label"
+                         Foreground="#1A1A1A"
+                         Opacity="0.75"
+                         FontSize="12"
+                         MinWidth="54"
+                         Padding="2,0"
+                         VerticalAlignment="Center" />
 
                 <TextBlock Grid.Column="1"
                            x:Name="TimerDisplay"
                            Text="{Binding Display}"
-                           Foreground="#1A1A1A"
+                           Foreground="{Binding HasFinished, Converter={x:Static app:FinishedBrush.Instance}}"
                            FontSize="24"
                            FontWeight="SemiBold"
                            Margin="8,0,0,0"
@@ -177,6 +182,52 @@
                         ToolTip.Tip="Start again"
                         Command="{Binding RestartCommand}"
                         Padding="6,2" />
+
+                <WrapPanel Grid.Row="1" Grid.ColumnSpan="5"
+                           x:Name="TimerEditRow"
+                           Orientation="Horizontal"
+                           Margin="0,4,0,0"
+                           IsVisible="{Binding CanEdit}">
+
+                    <Button x:Name="TimerDirectionToggle"
+                            Margin="0,0,3,0"
+                            Command="{Binding ToggleDirectionCommand}"
+                            ToolTip.Tip="Count down, or count up"
+                            FontSize="11"
+                            Padding="6,1"
+                            Content="{Binding IsCountingDown, Converter={x:Static app:DirectionLabel.Instance}}" />
+
+                    <ItemsControl ItemsSource="{Binding DurationPresets}"
+                                  IsVisible="{Binding IsCountingDown}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="3" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:Int32">
+                                <Button FontSize="11"
+                                        Padding="6,1"
+                                        Content="{Binding}"
+                                        ToolTip.Tip="Minutes"
+                                        Command="{Binding $parent[ItemsControl].((vm:NoteTimerViewModel)DataContext).SetDurationCommand}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <NumericUpDown x:Name="TimerMinutes"
+                                   Value="{Binding DurationMinutes}"
+                                   IsVisible="{Binding IsCountingDown}"
+                                   Minimum="1"
+                                   Maximum="600"
+                                   Increment="1"
+                                   FormatString="0"
+                                   FontSize="11"
+                                   Width="112"
+                                   Margin="3,0,0,0"
+                                   ShowButtonSpinner="True" />
+                </WrapPanel>
             </Grid>
         </Border>
 
