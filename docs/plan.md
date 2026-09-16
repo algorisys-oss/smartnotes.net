@@ -88,8 +88,124 @@ that builds a path from `$HOME` is a bug on two of the three platforms.
 
 Rich text, images, reminders, tags, sync, sharing, a tray icon, note stacking,
 Markdown. Each is a reasonable sticky-notes feature and none of them is what
-makes the first version work. They are listed in Milestone 5 so they stop being
+makes the first version work. They are listed in Milestone 6 so they stop being
 re-proposed.
+
+Timers and hyperlinks used to be on that list and are not any more: they are
+Milestone 5, and the review below is what the architecture has to hold for them.
+
+## Review: dynamic notes
+
+A note that only holds text is a note you read. The two features below make one a
+thing you *watch*, and they arrive after the MMF — but the point of reviewing them
+now is that one of them constrains `AutoSaveService`, which Milestone 2 is about
+to write. Getting that wrong is expensive; everything else here is cheap whenever
+we do it.
+
+### A stream timer on a note
+
+A countdown for "back in 5:00" during a break, or a count-up for "live for
+2:14:33". Customisable, pausable, resumable, restartable.
+
+**The whole design turns on one decision: the stored timer does not change while
+it runs.** Persist six fields and nothing else —
+
+    Direction      CountDown | CountUp
+    Duration       how long a countdown was set for
+    Label          "Back in", "Live for"
+    StartedAtUtc   when the current running stretch began; null means paused
+    Accumulated    time banked from earlier running stretches
+    (NoteId)
+
+— and make the displayed number a **pure function of those and `now`**:
+
+    running   remaining = Duration - (Accumulated + (now - StartedAtUtc))
+    paused    remaining = Duration - Accumulated
+
+Start sets `StartedAtUtc`. Pause banks the stretch into `Accumulated` and clears
+it. Resume sets it again. Restart zeroes `Accumulated`. Finished is not stored at
+all — it is `remaining <= 0`, asked whenever anyone looks.
+
+Three things fall out of that, and each one is a problem we then do not have:
+
+- **Ticking never causes a write.** Not because a rule says so, but because there
+  is nothing to write: no persisted field changes between one second and the next.
+  A design where the note stored "seconds remaining" would hand `AutoSaveService`
+  a note that is dirty every second forever, and the fix at that point is a
+  special case threaded through the save path.
+- **It survives a restart for free.** Close the laptop mid-break, reopen, and the
+  countdown is wherever the wall clock says it should be. There is no drift to
+  correct and no catch-up pass on startup, because nothing was ever counting — the
+  answer was always derived.
+- **It is testable without sleeping.** `FakeTimeProvider` advances two hours in a
+  microsecond. Every timing test is exact, and none of them is flaky on a loaded
+  machine. This is the same `TimeProvider` already threaded through `Note.Create`
+  and `NoteService`, so it costs nothing new.
+
+**What it needs that does not exist yet.** Something has to make the *display*
+tick once a second. `TimeProvider.CreateTimer` is BCL, so a view-model may use it
+without breaking the no-Avalonia rule — checked, it is there on .NET 10. But its
+callback arrives on a thread-pool thread and an Avalonia binding must be updated
+on the UI thread, so `SmartNotes.ViewModels` needs an `IUiDispatcher` seam
+implemented in the app. Milestone 2 needs that anyway, the moment an autosave
+completes off-thread; the timer is a second reason to introduce it there rather
+than a new cost.
+
+**Storage is its own table**, `note_timers`, keyed on `NoteId`, at most one row
+per note. Not six nullable columns on `notes`: most notes have no timer and should
+not carry the width, and the next dynamic element should get its own table too
+rather than widening `notes` again each time. Adding one is a migration step,
+which is cheap and is exactly what the migrator is for.
+
+**One trap this introduces.** `Note.Timer` would be the first reference-typed
+member on `Note`, and `Note.Copy()` is what makes a repository round-trip by
+value. Copy is trivially correct today because every field is a scalar; the moment
+a reference lands it has to deep-copy, or two notes share one timer and pausing a
+note's countdown in one window pauses it in the database too. The two contract
+tests that catch this for the note's own fields will keep passing while it is
+broken, so the contract needs a timer case added at the same time as the field.
+
+### Hyperlinks in a note
+
+**The cheap version needs no schema at all.** Content stays plain text; URLs are
+found in it and drawn as clickable. That is a rendering and interaction change,
+not a storage one, and it is why this is worth doing before Markdown rather than
+as part of it.
+
+Two pieces:
+
+- **`LinkScanner` in Core** — text in, ranges and `Uri`s out. A pure function,
+  tested without a window, which is what keeps the rendering code dumb.
+- **`ILinkLauncher`**, a seam in the view-model layer, implemented in the app over
+  `TopLevel.Launcher.LaunchUriAsync(Uri)` — checked, that exists in Avalonia 12,
+  in `Avalonia.Base`.
+
+**The part worth getting right is which URIs we agree to open.** `LaunchUriAsync`
+hands the string to the OS shell, note content is text a reader can paste from
+anywhere, and a `notes.db` can be copied between machines. So the scheme is
+**allow-listed before launching**: `http`, `https`, `mailto`, and nothing else.
+Anything unrecognised renders as ordinary text rather than as a link that does
+something surprising. `file:` is refused by name because it will open anything on
+disk, and unknown schemes are refused as a class because custom protocol handlers
+are registered by whatever else is installed and are a well-trodden path from
+"clicked a link in a document" to "ran a program". The allow-list lives in Core
+with its own tests, not at the call site where the next caller will forget it.
+
+**The fork in the road.** Bare URLs rendered clickable need no schema and no
+editor work. Labelled links - `[the docs](https://…)` - are Markdown, and Markdown
+is Milestone 6. Milestone 5 does the first; the second arrives with Markdown or
+not at all.
+
+### What this review changes now
+
+Nothing in the code. Two things to carry into Milestone 2:
+
+1. **`AutoSaveService` saves on change, never on a schedule.** A per-note debounce
+   triggered by a property actually changing, not a sweep that writes whatever
+   looks dirty. The timer design above means nothing ticking is ever dirty, and
+   these two decisions have to agree or the app writes to disk every second.
+2. **Introduce `IUiDispatcher` when autosave first needs it**, knowing the timer
+   will be its second caller.
 
 ## Minimum Marketable Feature set
 
@@ -148,6 +264,23 @@ Dependencies run one way, and nothing points back:
     settings
       Key           TEXT PRIMARY KEY
       Value         TEXT NOT NULL
+
+Milestone 5 adds one more table. It is written here so the shape is agreed, and
+it is **not** in the migrator yet — the step that creates it is written when the
+feature is:
+
+    note_timers                          -- at most one row per note
+      NoteId        TEXT PRIMARY KEY REFERENCES notes(Id) ON DELETE CASCADE
+      Direction     TEXT NOT NULL        -- CountDown | CountUp
+      Duration      INTEGER NOT NULL     -- ticks, for a countdown
+      Label         TEXT NOT NULL
+      StartedAtUtc  TEXT NULL            -- ISO-8601; null means paused
+      Accumulated   INTEGER NOT NULL     -- ticks banked from earlier stretches
+
+Nothing in that row changes while the timer runs, which is the property the whole
+feature rests on. `ON DELETE CASCADE` means purging a note takes its timer with
+it — and that needs `PRAGMA foreign_keys = ON` per connection, which
+`NoteDatabase` does not set today because there is nothing yet to enforce.
 
 Ids are made in the app rather than being `INTEGER` rowids, so a note object is
 complete before it has ever been written — which is what lets the view-model
@@ -247,7 +380,21 @@ Colours, always-on-top, settings and theme, keyboard shortcuts, the empty state,
 and packaging for the three platforms. MMF 4–5 and 8. The app stops being a
 prototype here.
 
-### Milestone 5 — After the MMF
+### Milestone 5 — Dynamic notes
+
+The stream timer and hyperlinks, designed in "Review: dynamic notes" above.
+
+The timer first, because it is the one with a shape to get right: `NoteTimer` and
+its arithmetic in Core against `FakeTimeProvider`, then the `note_timers` table
+and its migration step with the contract extended to cover it, then
+`Note.Copy()` deep-copying it, then the view-model tick and the display. Links
+after, and they are a smaller job: `LinkScanner` and the scheme allow-list in
+Core, `ILinkLauncher` in the app, clickable rendering in the note window.
+
+Both are testable almost all the way down, so this milestone should feel like
+Milestone 1 rather than Milestone 2.
+
+### Milestone 6 — After the MMF
 
 Not scheduled, kept so they are not re-argued: rich text or Markdown, images,
 reminders and alarms, tags and colour-as-category, a tray icon, note stacking and

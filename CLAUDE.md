@@ -77,7 +77,11 @@ Dependencies run one way and nothing points back:
   "inaccessible due to its protection level"), and `Migrator`. **The only project that contains SQL.** A query anywhere else is a
   bug, not a shortcut.
 - **`SmartNotes.ViewModels`** — `ManagerViewModel`, `NoteViewModel`, and
-  `IWindowManager`. **Do not add an Avalonia package reference to this project.**
+  `IWindowManager`. Ticking belongs here too: `TimeProvider.CreateTimer` is BCL,
+  so a view-model can drive a once-a-second repaint without reaching for
+  `DispatcherTimer` — but its callback lands on a thread-pool thread, so getting
+  back to the UI thread goes through an `IUiDispatcher` seam implemented in the
+  app. **Do not add an Avalonia package reference to this project.**
   It is absent on purpose: it is what keeps the view-models testable with `new`
   and no UI thread. If you need a type from Avalonia here, you need an abstraction
   instead.
@@ -138,6 +142,27 @@ desktop. Do not add a convenience overload around it.
 **Saving is debounced, and flushed on close.** `AutoSaveService` holds a pending
 write per note. A note window closing, and app shutdown, must flush rather than
 cancel. Both paths have tests; keep them.
+
+**Autosave is triggered by a change, never by a schedule.** A debounce that starts
+when a property actually changes — not a sweep that periodically writes whatever
+looks dirty. This is not style: Milestone 5 puts a running timer on a note, and a
+sweeping saver would write to disk every second forever. See "Review: dynamic
+notes" in `docs/plan.md`, which was agreed before `AutoSaveService` was written
+precisely so this decision would not have to be undone.
+
+**Anything that ticks is derived, never stored.** A countdown persists the instant
+it started and the time banked before that, and computes what to display from
+`now`. It must never persist "seconds remaining", because then every tick is a
+change, the note is dirty forever, and it drifts across a restart instead of
+simply being recomputed. The same rule holds for anything added later that moves
+on its own.
+
+**`Note.Copy()` must deep-copy anything that is not a scalar.** It is what makes a
+repository round-trip by value, and it is trivially correct today only because
+every field on `Note` is a value. The first reference-typed member — `Note.Timer`
+is the one coming — has to be copied, or two notes share it and the two contract
+tests that guard this keep passing while it is broken. Add a contract case in the
+same commit as the field.
 
 **Migrations are append-only.** `PRAGMA user_version` is the schema number, and
 `Migrator` runs the steps above it in order, each in a transaction. **Never edit a
