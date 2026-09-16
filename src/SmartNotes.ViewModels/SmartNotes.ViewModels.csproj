@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ManagerViewModel, NoteViewModel, and the IWindowManager they open windows
+    through.
+
+    There is deliberately no Avalonia reference here, and adding one is the
+    mistake this project exists to prevent: it is what keeps a view-model a plain
+    object a test can build with `new`, on no UI thread, in microseconds. If a
+    view-model seems to need an Avalonia type, it needs an abstraction in Core
+    instead. ViewModelsDoNotReferenceAvaloniaTests fails the build's tests if this
+    slips.
+  -->
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmartNotes.Core\SmartNotes.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SmartNotes.ViewModels.Tests" />
+  </ItemGroup>
+
+</Project>

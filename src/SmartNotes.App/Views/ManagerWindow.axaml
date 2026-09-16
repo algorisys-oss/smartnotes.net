@@ -1,0 +1,14 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SmartNotes.App.Views.ManagerWindow"
+        Title="SmartNotes"
+        Width="360" Height="520"
+        MinWidth="280" MinHeight="320">
+
+    <!-- Milestone 0: a window that opens and says nothing. The note list, the
+         search box and the new-note button arrive in Milestone 3. -->
+    <TextBlock Text="SmartNotes"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               Opacity="0.4" />
+</Window>
