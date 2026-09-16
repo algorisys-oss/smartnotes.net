@@ -7,12 +7,12 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
-> **Status: Milestone 4 in progress.** Notes live on the desktop as their own
-> borderless windows — draggable, resizable, pinnable, recolourable — save
-> themselves as you type, and come back where you left them. The manager lists
-> and searches them and holds the archive. Settings, keyboard shortcuts and
-> packaging for six runtime identifiers are in. 172 green tests. Start at
-> [LOOP.md](LOOP.md).
+> **Status: Milestone 4 done — the MMF is complete.** Notes live on the desktop
+> as their own borderless windows: draggable, resizable, pinnable, recolourable,
+> saved as you type, and back where you left them after a restart. The manager
+> lists and searches them and holds the archive. Settings, keyboard shortcuts, CI
+> and packaging for six runtime identifiers are in. 186 green tests. Next is
+> Milestone 5: the stream timer and hyperlinks. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 
@@ -160,6 +160,13 @@ scaffolds v2. Test projects are `OutputType=Exe` because xunit v3 requires it.
 
 Data tests create a real SQLite file in a temp directory and delete it afterwards.
 If a run is interrupted you may find strays under `$TMPDIR`; they are harmless.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` builds, tests and format-checks every push to `main`
+and every pull request, then packages all six runtime identifiers. Ubuntu only:
+the whole suite is headless and nothing in it needs a display, so a green run on
+CI means the same as a green run on your desk.
 
 ## Packaging
 

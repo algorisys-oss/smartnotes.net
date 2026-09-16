@@ -397,11 +397,12 @@ settings, Ctrl+N / Ctrl+P / Ctrl+W / Escape, the manager's empty states, and
 `scripts/package.sh` for all six runtime identifiers — verified by unpacking the
 linux-x64 archive and watching it start.
 
-Still open: **a settings window.** The service is there and tested; nothing in
-the UI lets anyone change a setting yet, so the default colour and the theme can
-only be set by editing the database. And **CI** — the suite runs headless and
-needs no display, so a workflow that builds, tests and format-checks on every
-push is straightforward and not yet written.
+Both of the pieces that were open are now in: a settings window reached from the
+manager, and `.github/workflows/ci.yml`, which builds, tests and format-checks
+every push and pull request and then packages all six runtime identifiers.
+
+**The MMF is complete.** All eight items hold, which is the bar this plan set for
+letting someone else install it.
 
 ### Milestone 5 — Dynamic notes
 

@@ -27,11 +27,15 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 4, mostly done.** Notes are draggable, resizable,
-pinnable and recolourable; settings, theme and keyboard shortcuts are in; and
-`scripts/package.sh` builds a self-contained release for six runtime identifiers.
-172 green tests. What is left in Milestone 4: a settings UI (the service exists,
-nothing exposes it), and CI. Then Milestone 5's timer and links.
+**The project is at Milestone 4, done — the MMF is complete.** All eight MMF
+items hold: notes are their own draggable, resizable, pinnable, recolourable
+windows, autosaved and restored; the manager lists, searches and archives; there
+is a settings window, keyboard shortcuts, CI, and packaging for six runtime
+identifiers. 186 green tests.
+
+Next is **Milestone 5**: the stream timer and hyperlinks, designed in "Review:
+dynamic notes" in `docs/plan.md`. Read that before starting — the timer's shape
+is already decided and the reasons matter.
 
 `origin` is <https://github.com/algorisys-oss/smartnotes.net>, public.
 
@@ -59,6 +63,14 @@ scripts/dev-start.sh              # the same in Debug, so F12 developer tools ex
 
 Use `--sandbox` before touching the schema. Testing a migration against your own
 week-old notes is how notes get lost.
+
+### CI
+
+`.github/workflows/ci.yml` builds, tests and format-checks on every push to
+`main` and every pull request, then packages all six runtime identifiers. Ubuntu
+only, because nothing in the suite needs a window. There are no skipped tests and
+nothing that needs a database server — if CI is green and your machine is not,
+the difference is yours.
 
 ### Packaging
 
