@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <!-- F12 opens the live visual tree. Debug builds only: it is a development
+         tool, and shipping it would put an inspector in a user's app. -->
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+  </ItemGroup>
+
+  <!-- App is the composition root, so it is the one project allowed to see both
+       the view-models and the storage that backs them. Nothing else references
+       Data. -->
+  <ItemGroup>
+    <ProjectReference Include="..\YappyNotes.Core\YappyNotes.Core.csproj" />
+    <ProjectReference Include="..\YappyNotes.Data\YappyNotes.Data.csproj" />
+    <ProjectReference Include="..\YappyNotes.ViewModels\YappyNotes.ViewModels.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="YappyNotes.App.Tests" />
+  </ItemGroup>
+
+</Project>

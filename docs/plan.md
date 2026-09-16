@@ -1,4 +1,4 @@
-# SmartNotes Plan
+# YappyNotes Plan
 
 Desktop sticky notes for Ubuntu, Windows and macOS. C# / .NET 10, Avalonia UI,
 SQLite. MVVM with a repository behind it.
@@ -47,7 +47,7 @@ deserves to be tested away from both the window and the database.
 **ViewModels get their own project.** The drawing has a ViewModel layer; a folder
 inside the app project would let an Avalonia type leak into a view-model the
 first time someone needs a colour or a screen bound, and the layer would quietly
-stop being a layer. `SmartNotes.ViewModels` does not reference Avalonia, so that
+stop being a layer. `YappyNotes.ViewModels` does not reference Avalonia, so that
 mistake is a compile error instead of a code review. It also means every
 view-model test runs without starting a UI.
 
@@ -80,8 +80,8 @@ no X/Y/W/H. They go on the note row. A note is its window; splitting its positio
 into a second store would mean two things to keep in step.
 
 **Where the database lives is per-OS, and resolved in one place.**
-`~/.local/share/SmartNotes/notes.db` on Linux, `%APPDATA%\SmartNotes\` on Windows,
-`~/Library/Application Support/SmartNotes/` on macOS. `UserPaths` owns that; code
+`~/.local/share/YappyNotes/notes.db` on Linux, `%APPDATA%\YappyNotes\` on Windows,
+`~/Library/Application Support/YappyNotes/` on macOS. `UserPaths` owns that; code
 that builds a path from `$HOME` is a bug on two of the three platforms.
 
 ### What we are deliberately not building yet
@@ -108,7 +108,7 @@ A countdown for "back in 5:00" during a break, or a count-up for "live for
 2:14:33". Customisable, pausable, resumable, restartable.
 
 **The whole design turns on one decision: the stored timer does not change while
-it runs.** Persist six fields and nothing else —
+it runs.** Persist five fields and nothing else —
 
     Direction      CountDown | CountUp
     Duration       how long a countdown was set for
@@ -146,7 +146,7 @@ Three things fall out of that, and each one is a problem we then do not have:
 tick once a second. `TimeProvider.CreateTimer` is BCL, so a view-model may use it
 without breaking the no-Avalonia rule — checked, it is there on .NET 10. But its
 callback arrives on a thread-pool thread and an Avalonia binding must be updated
-on the UI thread, so `SmartNotes.ViewModels` needs an `IUiDispatcher` seam
+on the UI thread, so `YappyNotes.ViewModels` needs an `IUiDispatcher` seam
 implemented in the app. Milestone 2 needs that anyway, the moment an autosave
 completes off-thread; the timer is a second reason to introduce it there rather
 than a new cost.
@@ -233,18 +233,18 @@ Dependencies run one way, and nothing points back:
      └──────────────────────────────┘
        (composition root only)
 
-- **`SmartNotes.Core`** — the domain and the rules. `Note`, `NoteColor`,
+- **`YappyNotes.Core`** — the domain and the rules. `Note`, `NoteColor`,
   `AppSettings`, the `INoteRepository` contract, and the services that hold
   policy: `NoteService`, `AutoSaveService`, `SettingsService`, plus `UserPaths`.
   It references nothing but the BCL. This is where most of the tests live.
-- **`SmartNotes.Data`** — `SqliteNoteRepository`, `NoteDatabase` (the connection
+- **`YappyNotes.Data`** — `SqliteNoteRepository`, `NoteDatabase` (the connection
   factory — not named `SqliteConnectionFactory`, because Microsoft.Data.Sqlite
   has an internal type by that name and the collision compiles into a baffling
   "inaccessible due to its protection level"), and `Migrator`. The only project that knows SQL exists.
-- **`SmartNotes.ViewModels`** — `ManagerViewModel`, `NoteViewModel`, and the
+- **`YappyNotes.ViewModels`** — `ManagerViewModel`, `NoteViewModel`, and the
   `IWindowManager` interface they call through. CommunityToolkit.Mvvm only; no
   Avalonia reference, enforced by the csproj.
-- **`SmartNotes.App`** — Avalonia. Views, `WindowManager`, and `Program`/`App`,
+- **`YappyNotes.App`** — Avalonia. Views, `WindowManager`, and `Program`/`App`,
   which is the one place that sees every layer at once because it wires them.
 
 ### The schema
@@ -335,7 +335,7 @@ database on someone else's machine.
     AutoSaveService.Schedule(note)      debounce ~750ms, per note
       │
       ▼
-    NoteService.SaveAsync(note)         sets ModifiedUtc, validates
+    NoteService.SaveAsync(note)         stamps ModifiedUtc
       │
       ▼
     INoteRepository.UpdateAsync(note)

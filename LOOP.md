@@ -1,4 +1,4 @@
-# LOOP.md — how SmartNotes gets built
+# LOOP.md — how YappyNotes gets built
 
 Test-driven, one behaviour at a time. [docs/plan.md](docs/plan.md) says what to
 build; this says how, and it is the file to reread when you are unsure what to do
@@ -48,18 +48,18 @@ deleted by whoever inherits it.
 
 ## Where the tests live, and how fast they run
 
-    tests/SmartNotes.TestKit/            the fake and the repository contract
-    tests/SmartNotes.Core.Tests/         domain, services, UserPaths
-    tests/SmartNotes.Data.Tests/         migrations, SqliteNoteRepository
-    tests/SmartNotes.ViewModels.Tests/   ManagerViewModel, NoteViewModel
-    tests/SmartNotes.App.Tests/          views, headless Avalonia
+    tests/YappyNotes.TestKit/            the fake and the repository contract
+    tests/YappyNotes.Core.Tests/         domain, services, UserPaths
+    tests/YappyNotes.Data.Tests/         migrations, SqliteNoteRepository
+    tests/YappyNotes.ViewModels.Tests/   ManagerViewModel, NoteViewModel
+    tests/YappyNotes.App.Tests/          views, headless Avalonia
 
 They get slower down that list, and there should be fewer of them down that list
 too. Core and ViewModels tests touch no disk and no UI; they are the ones you run
 on every save, and if they stop being fast something has leaked into a layer that
 should not have it.
 
-`InMemoryNoteRepository` lives in `SmartNotes.TestKit` — a library, not a test
+`InMemoryNoteRepository` lives in `YappyNotes.TestKit` — a library, not a test
 project, because Core.Tests, Data.Tests and ViewModels.Tests all need it. It is
 the fake every layer above Data is tested against. It is real code with real behaviour — it
 enforces the same "id must be unique" rule the SQL does — not a mock framework
@@ -85,10 +85,10 @@ still passes. Copy an existing `.csproj` when adding a test project;
 
 ## Running it
 
-    dotnet test smartnotes.sln                      # all of it, before every commit
-    dotnet test tests/SmartNotes.Core.Tests         # the fast ones, constantly
-    dotnet test smartnotes.sln --filter "FullyQualifiedName~AutoSaveService"
-    dotnet watch test --project tests/SmartNotes.Core.Tests
+    dotnet test yappynotes.sln                      # all of it, before every commit
+    dotnet test tests/YappyNotes.Core.Tests         # the fast ones, constantly
+    dotnet test yappynotes.sln --filter "FullyQualifiedName~AutoSaveService"
+    dotnet watch test --project tests/YappyNotes.Core.Tests
 
 Keep `dotnet watch test` on the fast project running in a second terminal while
 you work. The loop above is only pleasant when step 2 takes a second.
@@ -136,7 +136,7 @@ In order, and do not skip ahead:
    references from [docs/plan.md](docs/plan.md)'s dependency diagram.
 2. `global.json` pinning the SDK. `Directory.Build.props` with `Nullable` on.
 3. One test per test project asserting something trivially true, and
-   `dotnet test smartnotes.sln` green. Now red means you.
+   `dotnet test yappynotes.sln` green. Now red means you.
 4. `Note_WhenCreated_HasAnId` — red, then green.
 5. `Note_CreatedAfterAnother_HasAGreaterId` — red, then green. Ids are UUIDv7 and
    the ordering is load-bearing (`ORDER BY Id` is creation order), so it gets a

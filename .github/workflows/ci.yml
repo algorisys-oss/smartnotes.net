@@ -23,18 +23,18 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore smartnotes.sln
+        run: dotnet restore yappynotes.sln
 
       - name: Build
         # Warnings are treated as something you introduced rather than as errors
         # in day-to-day work, but a pull request should not add one unnoticed.
-        run: dotnet build smartnotes.sln --configuration Release --no-restore
+        run: dotnet build yappynotes.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test smartnotes.sln --configuration Release --no-build --verbosity normal
+        run: dotnet test yappynotes.sln --configuration Release --no-build --verbosity normal
 
       - name: Check formatting
-        run: dotnet format smartnotes.sln --verify-no-changes --no-restore
+        run: dotnet format yappynotes.sln --verify-no-changes --no-restore
 
   package:
     # Proves the thing a reader would actually download still builds, on every

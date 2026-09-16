@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run SmartNotes for development: a Debug build, so the F12 developer tools are
+# Run YappyNotes for development: a Debug build, so the F12 developer tools are
 # compiled in.
 #
 #   --watch     rebuild and restart on any source change
@@ -8,7 +8,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-project="$root/src/SmartNotes.App/SmartNotes.App.csproj"
+project="$root/src/YappyNotes.App/YappyNotes.App.csproj"
 
 watch=0
 sandbox=0
@@ -23,9 +23,9 @@ done
 
 if [[ $sandbox -eq 1 ]]; then
   # UserPaths honours this, so a sandbox run never opens the real notes.db.
-  export SMARTNOTES_DATA_DIR="$root/artifacts/sandbox"
-  mkdir -p "$SMARTNOTES_DATA_DIR"
-  echo "sandbox: $SMARTNOTES_DATA_DIR" >&2
+  export YAPPYNOTES_DATA_DIR="$root/artifacts/sandbox"
+  mkdir -p "$YAPPYNOTES_DATA_DIR"
+  echo "sandbox: $YAPPYNOTES_DATA_DIR" >&2
 fi
 
 if [[ $watch -eq 1 ]]; then
