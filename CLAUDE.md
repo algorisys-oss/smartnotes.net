@@ -25,11 +25,10 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 1, done.** A note persists: `Note`, `NoteColor`,
-`INoteRepository` with an in-memory fake and a SQLite implementation, `Migrator`,
-`UserPaths` and `NoteService`, on 78 green tests. There is no UI beyond the
-`ManagerWindow` that opens and says nothing — Milestone 2 is the first one a
-reader could see.
+**The project is at Milestone 2, done.** Notes are on the desktop: borderless
+`NoteWindow`s bound to a `NoteViewModel`, autosaved as you type, restored where
+they were left. 113 green tests. `ManagerWindow` has one button ("New note") and
+becomes the real manager in Milestone 3.
 
 `origin` is <https://github.com/algorisys-oss/smartnotes.net>, public.
 
@@ -101,6 +100,18 @@ is the one bug this app cannot afford.
 **A note's window geometry is on the note row** — `X`, `Y`, `Width`, `Height`,
 `IsAlwaysOnTop`. The bootstrap restores windows from it. Do not split it into a
 second store; a note *is* its window and two records would drift.
+
+**Applying a note's geometry to its window must be guarded.** Setting `Position`,
+`Width` or `Height` raises the window's own change events, which write straight
+back to the note and schedule a save — so restoring a note nobody touched would
+rewrite every one of them on every start. `NoteWindow._applyingGeometry` is that
+guard and it has a test; removing it makes the test fail, which was checked
+rather than assumed.
+
+**Closing a note window cancels the close, flushes, then closes again.** Closing
+is synchronous and flushing is not. Letting the close through first loses
+whatever the debounce was still holding, which is the last sentence somebody
+typed.
 
 **Ids are generated in the app**, not SQLite rowids, so a `Note` is complete
 before it has ever been written. That is what lets every layer above `Data` be
@@ -255,6 +266,24 @@ which target 11. Probe the assembly rather than trusting a snippet.
 
 `x:Name` on a `ColumnDefinition` or `RowDefinition` generates no field. Name the
 `Grid` and index into `ColumnDefinitions`.
+
+**Fluent styles a `TextBox` as a filled, bordered form field**, and
+`Background="Transparent"` on the control does not undo it: the template's own
+`Border#PART_BorderElement` carries the fill and swaps it again on `:pointerover`
+and `:focus`. A note rendered as a white form field inside a coloured frame until
+each state was reached into individually — see `NoteWindow.axaml`'s styles. The
+same shape of problem applies to `Button` and `ContentPresenter#PART_ContentPresenter`.
+
+**The theme variant is pinned to `Light` in `App.axaml`.** A note is always light
+paper; on a dark desktop Fluent otherwise resolves dark-theme foregrounds onto it.
+
+**`Window` has no styled property for its position.** `PositionChanged` is the
+only way to hear about a drag landing somewhere new — `PositionProperty` does not
+exist.
+
+**`SystemDecorations` and `TextBox.Watermark` are obsolete in Avalonia 12** —
+`WindowDecorations` and `PlaceholderText` replace them. `TextPresenter.Foreground`
+is not an `AvaloniaProperty` and cannot be set from a style selector.
 
 Bindings fail silently — a binding to a property that does not exist throws
 nothing and shows nothing. Run in Debug and press **F12** for the developer tools
