@@ -184,4 +184,63 @@ public class NoteViewModelTests
 
         Assert.Equal("half a sentence", (await StoredAsync(viewModel))!.Content);
     }
+
+    [Fact]
+    public async Task TogglePinCommand_OnAnUnpinnedNote_PinsItAndWritesThat()
+    {
+        var viewModel = await NewViewModelAsync();
+
+        viewModel.TogglePinCommand.Execute(null);
+        await SettleAsync();
+
+        Assert.True(viewModel.IsAlwaysOnTop);
+        Assert.True((await StoredAsync(viewModel))!.IsAlwaysOnTop);
+    }
+
+    [Fact]
+    public async Task TogglePinCommand_Twice_LeavesTheNoteUnpinned()
+    {
+        var viewModel = await NewViewModelAsync();
+
+        viewModel.TogglePinCommand.Execute(null);
+        viewModel.TogglePinCommand.Execute(null);
+        await SettleAsync();
+
+        Assert.False(viewModel.IsAlwaysOnTop);
+        Assert.False((await StoredAsync(viewModel))!.IsAlwaysOnTop);
+    }
+
+    [Fact]
+    public async Task SetColorCommand_WithAColour_RepaintsTheNoteAndWritesIt()
+    {
+        var viewModel = await NewViewModelAsync();
+
+        viewModel.SetColorCommand.Execute(NoteColor.Green);
+        await SettleAsync();
+
+        Assert.Equal(NoteColor.Green, viewModel.Color);
+        Assert.Equal(NoteColor.Green, (await StoredAsync(viewModel))!.Color);
+    }
+
+    [Fact]
+    public async Task SetColorCommand_WithTheColourItAlreadyIs_WritesNothing()
+    {
+        var viewModel = await NewViewModelAsync();
+        viewModel.SetColorCommand.Execute(NoteColor.Green);
+        await SettleAsync();
+        var writesSoFar = _counting.Updates;
+
+        viewModel.SetColorCommand.Execute(NoteColor.Green);
+        await SettleAsync();
+
+        Assert.Equal(writesSoFar, _counting.Updates);
+    }
+
+    [Fact]
+    public async Task AvailableColors_OffersEveryColourANoteCanBe()
+    {
+        var viewModel = await NewViewModelAsync();
+
+        Assert.Equal(Enum.GetValues<NoteColor>(), viewModel.AvailableColors);
+    }
 }

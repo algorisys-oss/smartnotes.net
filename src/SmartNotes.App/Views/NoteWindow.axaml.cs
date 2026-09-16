@@ -67,7 +67,8 @@ public partial class NoteWindow : Window
             Width = note.Width;
             Height = note.Height;
             Position = new Avalonia.PixelPoint(note.X, note.Y);
-            Topmost = note.IsAlwaysOnTop;
+            // Topmost is bound in XAML, so pinning follows the view-model rather
+            // than being frozen at whatever it was when the window opened.
         }
         finally
         {

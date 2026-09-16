@@ -130,4 +130,41 @@ public class NoteWindowDragTests
 
         Assert.False(titleBox.IsHitTestVisible);
     }
+
+    /// <summary>
+    /// Every button added to the strip takes space away from the drag area, so
+    /// this is the assertion that says how many is too many.
+    /// </summary>
+    [AvaloniaFact]
+    public void NoteWindow_WithThePinButtonAdded_IsStillMostlyGrabbable()
+    {
+        var window = OpenWindow();
+
+        Assert.True(GrabbablePointsAcross(window) >= 10);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_WhenTheNoteIsPinned_FollowsIt()
+    {
+        // Topmost used to be set once when the window opened, so pinning a note
+        // changed the view-model and nothing else.
+        var window = OpenWindow();
+        var note = (NoteViewModel)window.DataContext!;
+
+        note.TogglePinCommand.Execute(null);
+
+        Assert.True(window.Topmost);
+    }
+
+    [AvaloniaFact]
+    public void NoteWindow_WhenTheNoteIsUnpinned_DropsBackDown()
+    {
+        var window = OpenWindow();
+        var note = (NoteViewModel)window.DataContext!;
+        note.TogglePinCommand.Execute(null);
+
+        note.TogglePinCommand.Execute(null);
+
+        Assert.False(window.Topmost);
+    }
 }
