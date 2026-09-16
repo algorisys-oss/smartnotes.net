@@ -180,6 +180,18 @@ that approach, including what was rejected — not a list of changed files. Read
 **Work happens on a feature branch**, merged back with a `Merge <branch-name>`
 commit. Never commit a red suite.
 
+**Every finished feature is committed and pushed.** Not at the end of a session
+and not in a batch: a feature that is implemented, green and formatted gets its
+commit and reaches `origin` before the next one starts. "Green" means the full
+`dotnet test smartnotes.sln`, not the project you were working in. A feature that
+is half-done at the end of a session stays uncommitted rather than being pushed
+behind a flag.
+
+`origin` is <https://github.com/algorisys-oss/smartnotes.net> — public, so
+anything committed is published. Nothing secret goes in the repository; there is
+no `.env` here and a new environment variable belongs in an `.env.example` with a
+placeholder value.
+
 There is no `.editorconfig`; `dotnet format` is the formatter of record.
 
 **MVVM is CommunityToolkit.Mvvm**, not ReactiveUI. Use `[ObservableProperty]` and
