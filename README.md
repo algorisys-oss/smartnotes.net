@@ -7,7 +7,8 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
-> **Status: Milestone 5 done, plus timer customisation.** Notes now do something: a note can carry a stream
+> **Status: Milestone 5 done.** Milestone 6 — rich text and a tray icon — is
+> scoped in [docs/plan.md](docs/plan.md) and not started. Notes now do something: a note can carry a stream
 > timer — a countdown for "back in 5:00" or a count-up for how long you have been
 > live — that pauses, resumes and restarts, and survives closing the app. Links in
 > a note's text are offered beside it, http/https/mailto only. The timer's label,
@@ -208,6 +209,26 @@ convention rather than dropping a dotfile in `$HOME`:
 
 That file is the entire application state. Copy it to back up your notes; delete
 it to start over.
+
+### If your notes seem to have vanished
+
+`UserPaths` honours `XDG_DATA_HOME`, which is correct per the XDG spec and
+occasionally surprising: **some snap-packaged apps set it into their own
+sandbox.** VS Code installed as a snap is one of them, so a SmartNotes started
+from its integrated terminal reads and writes
+
+    ~/snap/code/<revision>/.local/share/SmartNotes/notes.db
+
+while the same build started from a normal terminal or a desktop launcher uses
+`~/.local/share/SmartNotes/notes.db` — a different, empty database. Nothing is
+lost either way; they are two files. To find them all:
+
+    find ~ -name notes.db
+
+To pin one deliberately, set `SMARTNOTES_DATA_DIR`, which wins over everything
+else:
+
+    SMARTNOTES_DATA_DIR=~/.local/share/SmartNotes dotnet run --project src/SmartNotes.App
 
 Inspect it with any SQLite client:
 
