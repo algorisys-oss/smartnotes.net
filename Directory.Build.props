@@ -5,12 +5,12 @@
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
     <FileVersion>$(VersionPrefix)</FileVersion>
     <InformationalVersion>$(VersionPrefix)</InformationalVersion>
-    <Authors>SmartNotes contributors</Authors>
-    <Product>SmartNotes</Product>
+    <Authors>YappyNotes contributors</Authors>
+    <Product>YappyNotes</Product>
     <Copyright>Copyright (c) 2026 Algorisys OSS Team</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/algorisys-oss/smartnotes.net</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/algorisys-oss/smartnotes.net</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/algorisys-oss/yappynotes</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/algorisys-oss/yappynotes</RepositoryUrl>
 
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>

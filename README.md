@@ -1,4 +1,4 @@
-# SmartNotes
+# YappyNotes
 
 Desktop sticky notes for Ubuntu, Windows and macOS. Each note is its own window
 that stays where you put it, saves itself as you type, and is still there after a
@@ -7,19 +7,26 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
-> **Status: Milestone 5 done.** Milestone 6 — rich text and a tray icon — is
-> scoped in [docs/plan.md](docs/plan.md) and not started. Notes now do something: a note can carry a stream
-> timer — a countdown for "back in 5:00" or a count-up for how long you have been
-> live — that pauses, resumes and restarts, and survives closing the app. Links in
-> a note's text are offered beside it, http/https/mailto only. The timer's label,
-> length and direction are editable while it is stopped. 305 green tests.
+| A note | The manager |
+| --- | --- |
+| ![A note with a running break timer and a link](media/note.png) | ![The manager listing three notes](media/manager.png) |
+
+> **Status: Milestone 5 done. Milestone 6 — rich text and a tray icon — is
+> scoped in [docs/plan.md](docs/plan.md) and not started.**
 >
-> **Milestone 4 before it — the MMF — is complete.** Notes live on the desktop
-> as their own borderless windows: draggable, resizable, pinnable, recolourable,
-> saved as you type, and back where you left them after a restart. The manager
-> lists and searches them and holds the archive. Settings, keyboard shortcuts, CI
-> and packaging for six runtime identifiers are in. 186 green tests. Next is
-> Milestone 5: the stream timer and hyperlinks. Start at [LOOP.md](LOOP.md).
+> All eight MMF items hold: notes live on the desktop as their own borderless
+> windows — draggable, resizable, pinnable, recolourable — save themselves as you
+> type, and come back where you left them. The manager lists and searches them and
+> holds the archive. Settings, keyboard shortcuts, CI and packaging for six
+> runtime identifiers are in.
+>
+> On top of that, a note can carry a stream timer — a countdown for "back in
+> 5:00" or a count-up for how long you have been live — that pauses, resumes and
+> restarts, whose label, length and direction are editable while it is stopped,
+> and which survives closing the app. Links in a note's text are offered beside
+> it, http/https/mailto only.
+>
+> 346 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 
@@ -62,50 +69,50 @@ the native library — so there is no server and no connection string.
 
 ## Project layout
 
-    smartnotes.sln
+    yappynotes.sln
     global.json                       SDK pin
     Directory.Build.props             version and shared build settings
     src/
-      SmartNotes.Core/                domain, services, INoteRepository, UserPaths
-      SmartNotes.Data/                SqliteNoteRepository, Migrator
-      SmartNotes.ViewModels/          ManagerViewModel, NoteViewModel, IWindowManager
-      SmartNotes.App/                 Avalonia views, WindowManager, bootstrap
+      YappyNotes.Core/                domain, services, INoteRepository, UserPaths
+      YappyNotes.Data/                SqliteNoteRepository, Migrator
+      YappyNotes.ViewModels/          ManagerViewModel, NoteViewModel, IWindowManager
+      YappyNotes.App/                 Avalonia views, WindowManager, bootstrap
     tests/
-      SmartNotes.TestKit/             the fake and the INoteRepository contract
-      SmartNotes.Core.Tests/
-      SmartNotes.Data.Tests/
-      SmartNotes.ViewModels.Tests/
-      SmartNotes.App.Tests/           headless Avalonia
+      YappyNotes.TestKit/             the fake and the INoteRepository contract
+      YappyNotes.Core.Tests/
+      YappyNotes.Data.Tests/
+      YappyNotes.ViewModels.Tests/
+      YappyNotes.App.Tests/           headless Avalonia
     scripts/
       dev-start.sh                    run in Debug, optionally watched and sandboxed
     docs/
 
 Dependencies run one way — `App` → `ViewModels` → `Core`, and `Data` → `Core`,
 with `App` referencing `Data` only to wire it up at startup.
-`SmartNotes.ViewModels` has no reference to Avalonia, deliberately; see
+`YappyNotes.ViewModels` has no reference to Avalonia, deliberately; see
 [docs/plan.md](docs/plan.md).
 
 ## Running in dev mode
 
 ### 1. Clone and restore
 
-    git clone <repository-url> smartnotes.net
-    cd smartnotes.net
-    dotnet restore smartnotes.sln
+    git clone <repository-url> yappynotes
+    cd yappynotes
+    dotnet restore yappynotes.sln
 
 Restore needs network access the first time. After that the packages are cached
 in `~/.nuget/packages` and you can work offline.
 
 ### 2. Build
 
-    dotnet build smartnotes.sln
+    dotnet build yappynotes.sln
 
 A clean build should be warning-free. Warnings are not errors in this repo, but a
 new one is something you introduced — read it.
 
 ### 3. Run the app
 
-    dotnet run --project src/SmartNotes.App/SmartNotes.App.csproj
+    dotnet run --project src/YappyNotes.App/YappyNotes.App.csproj
 
 Or, preferably, the dev script:
 
@@ -132,25 +139,25 @@ silently. Most "why is this control invisible" questions are one F12 away.
 The loop in [LOOP.md](LOOP.md) assumes a watcher on the fast tests in a second
 terminal:
 
-    dotnet watch test --project tests/SmartNotes.Core.Tests
+    dotnet watch test --project tests/YappyNotes.Core.Tests
 
 and the whole suite before you commit:
 
-    dotnet test smartnotes.sln
+    dotnet test yappynotes.sln
 
 ### 6. Format before you commit
 
-    dotnet format smartnotes.sln
+    dotnet format yappynotes.sln
 
 `dotnet format` is the formatter of record. There is no `.editorconfig` to argue
 with.
 
 ## Running tests
 
-    dotnet test smartnotes.sln                          # everything
-    dotnet test tests/SmartNotes.Core.Tests             # one project
-    dotnet test smartnotes.sln --filter "FullyQualifiedName~AutoSaveService"
-    dotnet test smartnotes.sln --filter "FullyQualifiedName~NoteService_SavingANote_StampsModifiedUtc"
+    dotnet test yappynotes.sln                          # everything
+    dotnet test tests/YappyNotes.Core.Tests             # one project
+    dotnet test yappynotes.sln --filter "FullyQualifiedName~AutoSaveService"
+    dotnet test yappynotes.sln --filter "FullyQualifiedName~NoteService_SavingANote_StampsModifiedUtc"
 
 Everything runs on a headless machine, including the UI tests — they use
 `Avalonia.Headless.XUnit` and never open a window. There is nothing to skip and
@@ -186,7 +193,7 @@ nothing else** — build logs go to stderr, so a caller can capture the path wit
 `.tar.gz`, under `artifacts/`.
 
 Self-contained, so there is no .NET runtime to install first — the archive is
-about 45 MB and unpacks to a folder you run `SmartNotes.App` from. Pass
+about 45 MB and unpacks to a folder you run `YappyNotes.App` from. Pass
 `--publish-only` to get the unarchived folder instead, which is what a `.deb` or
 an `.app` bundle would build on.
 
@@ -196,43 +203,53 @@ and a sticky-notes app is not worth the debugging that hiding them invites.
 The version comes from `VersionPrefix` in `Directory.Build.props`, read by
 `scripts/version.sh`. That is the only place it is written down.
 
-## Where SmartNotes keeps your files
+## Where YappyNotes keeps your files
 
-Resolved by `UserPaths` in `SmartNotes.Core`, following each platform's
+Resolved by `UserPaths` in `YappyNotes.Core`, following each platform's
 convention rather than dropping a dotfile in `$HOME`:
 
 | | Database and settings |
 | --- | --- |
-| Linux | `~/.local/share/SmartNotes/notes.db` (or `$XDG_DATA_HOME/SmartNotes/`) |
-| Windows | `%APPDATA%\SmartNotes\notes.db` |
-| macOS | `~/Library/Application Support/SmartNotes/notes.db` |
+| Linux | `~/.local/share/YappyNotes/notes.db` (or `$XDG_DATA_HOME/YappyNotes/`) |
+| Windows | `%APPDATA%\YappyNotes\notes.db` |
+| macOS | `~/Library/Application Support/YappyNotes/notes.db` |
 
 That file is the entire application state. Copy it to back up your notes; delete
 it to start over.
+
+### Notes from before the rename
+
+This app was called **SmartNotes** until it was renamed to YappyNotes, and the
+folder it keeps notes in is named after it. The first start after the rename
+moves an existing `SmartNotes` folder across, so nothing needs doing by hand.
+
+It never overwrites: if a `YappyNotes` folder already exists then the app has
+been started under the new name and the old folder is left exactly where it is.
+Both are ordinary directories — if a move ever needs undoing, it is a `mv`.
 
 ### If your notes seem to have vanished
 
 `UserPaths` honours `XDG_DATA_HOME`, which is correct per the XDG spec and
 occasionally surprising: **some snap-packaged apps set it into their own
-sandbox.** VS Code installed as a snap is one of them, so a SmartNotes started
+sandbox.** VS Code installed as a snap is one of them, so a YappyNotes started
 from its integrated terminal reads and writes
 
-    ~/snap/code/<revision>/.local/share/SmartNotes/notes.db
+    ~/snap/code/<revision>/.local/share/YappyNotes/notes.db
 
 while the same build started from a normal terminal or a desktop launcher uses
-`~/.local/share/SmartNotes/notes.db` — a different, empty database. Nothing is
+`~/.local/share/YappyNotes/notes.db` — a different, empty database. Nothing is
 lost either way; they are two files. To find them all:
 
     find ~ -name notes.db
 
-To pin one deliberately, set `SMARTNOTES_DATA_DIR`, which wins over everything
+To pin one deliberately, set `YAPPYNOTES_DATA_DIR`, which wins over everything
 else:
 
-    SMARTNOTES_DATA_DIR=~/.local/share/SmartNotes dotnet run --project src/SmartNotes.App
+    YAPPYNOTES_DATA_DIR=~/.local/share/YappyNotes dotnet run --project src/YappyNotes.App
 
 Inspect it with any SQLite client:
 
-    sqlite3 ~/.local/share/SmartNotes/notes.db
+    sqlite3 ~/.local/share/YappyNotes/notes.db
     sqlite> .schema notes
     sqlite> select Id, Title, ModifiedUtc from notes where IsArchived = 0;
     sqlite> pragma user_version;        -- the schema version Migrator has reached
@@ -274,7 +291,7 @@ the second.
 MIT — see [LICENSE](LICENSE). Use it, change it, ship it; keep the copyright
 notice.
 
-Everything SmartNotes ships is MIT too: Avalonia, CommunityToolkit.Mvvm,
+Everything YappyNotes ships is MIT too: Avalonia, CommunityToolkit.Mvvm,
 `Microsoft.Data.Sqlite` and the `Microsoft.Extensions.*` packages. xunit is
 Apache-2.0, which is MIT-compatible and in any case only ever runs the tests —
 it is not distributed with the app.
