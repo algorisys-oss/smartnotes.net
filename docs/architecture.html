@@ -1,0 +1,1727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YappyNotes — the architecture, and why it is shaped this way</title>
+<meta name="description" content="How YappyNotes is put together: four projects with dependencies running one way, a keystroke debounced into a single UPDATE, and a timer that ticks without ever writing to disk.">
+
+<!--
+  A single file. Open it in a browser; there is nothing to build.
+
+  The animated figures are driven by tinyfly (https://tinyfly.app), loaded from
+  jsDelivr and pinned to v0.70.1 with a Subresource Integrity hash. That is the
+  page's only external request, and everything else - text, styles, the drawings
+  themselves - is inline.
+
+  If that request fails, nothing here breaks. Every diagram is authored in its
+  finished state, so the SVG a reader sees without the script is the complete
+  picture rather than an empty box; the script's job is to take it apart and
+  rebuild it a step at a time. A notice appears at the top saying the figures are
+  static, and each figure's steps are written out underneath it as ordinary text.
+
+  Everything in this document is drawn from the repository: docs/plan.md,
+  CLAUDE.md, README.md, LOOP.md, docs/sticky-notes-architecture.md and the source
+  under src/. Where a claim is about code, the type and file are named so it can
+  be checked.
+-->
+
+<style>
+:root {
+  color-scheme: light dark;
+
+  --bg:        #fbfaf7;
+  --bg-sunk:   #f2f0ea;
+  --surface:   #ffffff;
+  --fg:        #1c1b19;
+  --fg-muted:  #5d5a54;
+  --line:      #cfcbc2;
+  --line-soft: #e4e1d9;
+  --accent:    #1d4ed8;
+  --accent-solid: #2f5fd0;   /* stays legible under white control labels in both themes */
+  --accent-2:  #b45309;
+  --good:      #15803d;
+  --bad:       #b91c1c;
+
+  /* Diagram ink. Chosen to carry on both paper colours, because tinyfly writes
+     these straight into an element's style attribute and CSS cannot re-theme
+     them afterwards. */
+  --ink-blue:   #3b82f6;
+  --ink-amber:  #f59e0b;
+  --ink-green:  #22c55e;
+  --ink-red:    #ef4444;
+
+  /* A fixed length rather than `ch`: ch resolves against each element's own
+     font, so headings and body text would centre to different widths and the
+     left edge of the column would wander. */
+  --measure: 36rem;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #17181a;
+    --bg-sunk:   #121315;
+    --surface:   #1f2124;
+    --fg:        #e8e6e1;
+    --fg-muted:  #a3a09a;
+    --line:      #43464b;
+    --line-soft: #303336;
+    --accent:    #93b4ff;
+    --accent-solid: #2f5fd0;
+    --accent-2:  #f0b866;
+    --good:      #6ee7a8;
+    --bad:       #fca5a5;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding: 0 16px 6rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 17px/1.65 ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  overflow-wrap: break-word;
+}
+
+/* The page is as wide as the widest figure; the prose inside it is narrower.
+   Constraining the text rather than the container is what lets a diagram be
+   wider than the column it explains without any breakout trickery. */
+main, header.page { max-width: min(100%, 880px); margin: 0 auto; }
+
+main > p, main > h2, main > h3, main > ul, main > ol, main > pre,
+main > blockquote, main > .callout, main > table, main > dl,
+header.page > * {
+  max-width: var(--measure);
+  margin-inline: auto;
+}
+
+h1, h2, h3 {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); margin: 0 0 .4rem; }
+h2 {
+  font-size: clamp(1.35rem, 3.6vw, 1.7rem);
+  margin: 3.5rem 0 .8rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--line-soft);
+}
+h3 { font-size: 1.1rem; margin: 2.2rem 0 .5rem; }
+
+header.page { padding: 3.5rem 0 1rem; }
+header.page p.standfirst {
+  font-size: 1.12rem;
+  color: var(--fg-muted);
+  max-width: var(--measure);
+  margin: 0 auto 1.4rem;
+}
+header.page .meta {
+  font: 400 .85rem/1.6 ui-sans-serif, system-ui, sans-serif;
+  color: var(--fg-muted);
+  border-top: 1px solid var(--line-soft);
+  padding-top: .9rem;
+}
+
+p { margin: 0 0 1.1rem; }
+
+a { color: var(--accent); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+
+code, pre, .mono {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: .88em;
+}
+code { background: var(--bg-sunk); padding: .1em .35em; border-radius: 4px; }
+pre {
+  background: var(--bg-sunk);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+pre code { background: none; padding: 0; }
+
+blockquote {
+  margin: 1.6rem 0;
+  padding: .2rem 0 .2rem 1.1rem;
+  border-left: 3px solid var(--line);
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+ul, ol { padding-left: 1.3rem; margin: 0 0 1.1rem; }
+li { margin-bottom: .45rem; }
+
+table.fields {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 .92rem/1.5 ui-sans-serif, system-ui, sans-serif;
+  margin: 0 0 1.4rem;
+}
+table.fields th, table.fields td {
+  text-align: left;
+  vertical-align: top;
+  padding: .5rem .7rem .5rem 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+table.fields th { color: var(--fg-muted); font-weight: 600; }
+table.fields td.k { font-family: ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; }
+
+.callout {
+  background: var(--bg-sunk);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin: 1.6rem 0;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout > strong:first-child { display: block; margin-bottom: .3rem; }
+
+/* ---- figures ------------------------------------------------------------ */
+
+figure[data-tinyfly-embed] {
+  margin: 2.4rem auto 2.6rem;
+  padding: 1rem 1rem .6rem;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+}
+
+/* Scoped to the diagram on purpose: tinyfly's control buttons carry inline
+   SVG icons, and a bare `figure svg` rule blows them up to full width. */
+.dg-scroll > svg { width: 100%; height: auto; display: block; }
+
+/* On a narrow screen a 764-unit-wide drawing scaled to fit would put its labels
+   below the size anyone can read, so below this width the diagram keeps a
+   legible minimum and the reader pans it instead. The full-screen button on each
+   figure is the other way out. */
+.dg-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+@media (max-width: 700px) {
+  .dg-scroll svg { min-width: 640px; }
+  .dg-scroll { padding-bottom: .4rem; }
+}
+
+figcaption {
+  font: 400 .9rem/1.5 ui-sans-serif, system-ui, sans-serif;
+  color: var(--fg-muted);
+  margin-top: .7rem;
+}
+
+/* tinyfly's controls take their colours from these. Every class it writes is
+   prefixed tf-ctl; the descendant selector is there because tinyfly injects its
+   own stylesheet when it mounts, which is after this one. */
+figure[data-tinyfly-embed] .tf-ctl {
+  --tf-ctl-fg: var(--fg);
+  --tf-ctl-bg: var(--bg-sunk);
+  --tf-ctl-accent: var(--accent-solid);
+  --tf-ctl-radius: 8px;
+  --tf-ctl-font: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  margin-top: .7rem;
+}
+:root { --tf-fullscreen-bg: var(--bg); }
+
+details.steps {
+  margin-top: .7rem;
+  font: 400 .9rem/1.6 ui-sans-serif, system-ui, sans-serif;
+}
+details.steps summary {
+  cursor: pointer;
+  color: var(--fg-muted);
+  padding: .25rem 0;
+}
+details.steps ol { margin: .6rem 0 .2rem; }
+details.steps li { color: var(--fg-muted); }
+details.steps li b { color: var(--fg); font-weight: 600; }
+
+/* ---- diagram ink -------------------------------------------------------- */
+
+.dg-panel  { fill: var(--bg-sunk); stroke: var(--line-soft); }
+.dg-box    { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.dg-hl     { stroke: none; }
+.dg-title  { fill: var(--fg); font: 600 15px ui-sans-serif, system-ui, sans-serif; }
+.dg-label  { fill: var(--fg); font: 500 13px ui-sans-serif, system-ui, sans-serif; }
+.dg-sub    { fill: var(--fg-muted); font: 400 11.5px ui-sans-serif, system-ui, sans-serif; }
+.dg-mono   { fill: var(--fg); font: 400 12px ui-monospace, Menlo, Consolas, monospace; }
+.dg-mono-d { fill: var(--fg-muted); font: 400 11.5px ui-monospace, Menlo, Consolas, monospace; }
+.dg-arrow  { fill: none; stroke: var(--line); stroke-width: 2; }
+.dg-arrow-head { fill: var(--line); }
+.dg-rule   { stroke: var(--line-soft); stroke-width: 1; }
+.dg-bad      { stroke: var(--ink-red); }
+.dg-head-bad { fill: var(--ink-red); }
+.dg-good     { stroke: var(--ink-green); }
+.dg-head-good{ fill: var(--ink-green); }
+.dg-dim      { fill: var(--bg-sunk); stroke: var(--line-soft); }
+
+/* ---- fallback notice ---------------------------------------------------- */
+
+#no-tinyfly {
+  display: none;
+  max-width: var(--measure);
+  margin: 1.5rem auto 0;
+  padding: .8rem 1rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-sunk);
+  color: var(--fg-muted);
+  font: 400 .9rem/1.5 ui-sans-serif, system-ui, sans-serif;
+}
+html.tinyfly-missing #no-tinyfly { display: block; }
+html.tinyfly-missing details.steps { border-left: 3px solid var(--accent); padding-left: .8rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+}
+
+@media (max-width: 560px) {
+  body { font-size: 16px; padding-inline: 14px; }
+  figure[data-tinyfly-embed] { padding: .7rem .7rem .4rem; }
+}
+</style>
+</head>
+<body>
+
+<header class="page">
+  <h1>YappyNotes: the architecture</h1>
+  <p class="standfirst">
+    Four projects, dependencies running one way, and two mechanisms worth
+    understanding before you change anything: how a keystroke becomes a single
+    <code>UPDATE</code>, and why a running countdown never writes to disk at all.
+  </p>
+  <p class="meta">
+    A companion to <a href="plan.md">docs/plan.md</a>, which is the authority.
+    This page adds the moving pictures; where the two disagree, the plan wins.
+    Source: <a href="https://github.com/algorisys-oss/yappynotes">algorisys-oss/yappynotes</a>.
+    The figures step: use the buttons, or <kbd>←</kbd> and <kbd>→</kbd> with the
+    figure focused.
+  </p>
+</header>
+
+<div id="no-tinyfly" role="status">
+  The animation script did not load, so the figures below are showing their
+  finished state instead of stepping through it. Each one has its steps written
+  out underneath as text.
+</div>
+
+<main>
+
+<h2>What the application is</h2>
+
+<p>
+  YappyNotes is a desktop sticky-notes app for Ubuntu, Windows and macOS, written
+  in C# on .NET&nbsp;10 with <a href="https://avaloniaui.net">Avalonia&nbsp;UI</a>
+  and SQLite. The product idea is one sentence long and the architecture follows
+  from it: <strong>a note you open is a window on your desktop, not a row in a
+  list.</strong> It stays where you put it, it looks the way you left it, and it
+  is still there after a reboot.
+</p>
+
+<p>
+  Nothing is ever saved by pressing a button. There is no account, no sync and no
+  network — the whole product is one SQLite file you could copy to a USB stick.
+  That constraint is worth holding on to while reading the rest of this page,
+  because several decisions that look fussy in isolation are paying for it.
+</p>
+
+<h2>Four projects, and which way the arrows point</h2>
+
+<p>
+  The solution has four source projects, four test projects and a shared test
+  library. The source dependencies run one way and nothing points back:
+</p>
+
+<figure data-tinyfly-embed data-fullscreen="true"
+        data-options='{"stepMode": true}'
+        data-alt="The four YappyNotes projects and the dependencies between them, built up one arrow at a time">
+  <div class="dg-scroll">
+    <svg viewBox="0 0 764 300" role="img"
+       aria-label="The four YappyNotes projects and the dependencies between them">
+
+    <!-- the arrow that must never exist -->
+    <g data-tinyfly="f1-back" opacity="1">
+      <path class="dg-arrow dg-bad" d="M280 60 V 28 H 76 V 48"/>
+      <polygon class="dg-head-bad" points="70,46 82,46 76,60"/>
+    </g>
+    <g data-tinyfly="f1-x" opacity="1">
+      <path class="dg-arrow dg-bad" d="M172 20 L 186 36 M186 20 L 172 36"/>
+    </g>
+    <text data-tinyfly="f1-backlabel" opacity="1" class="dg-sub" x="300" y="32">
+      YappyNotes.ViewModels references no Avalonia — a failing test, not a code review
+    </text>
+
+    <!-- the four projects -->
+    <g>
+      <rect class="dg-box" x="16" y="60" width="120" height="68" rx="8"/>
+      <text class="dg-title" x="76" y="90" text-anchor="middle">App</text>
+      <text class="dg-mono-d" x="76" y="110" text-anchor="middle" style="font-size:9px">YappyNotes.App</text>
+    </g>
+    <g>
+      <rect class="dg-box" x="220" y="60" width="120" height="68" rx="8"/>
+      <text class="dg-title" x="280" y="90" text-anchor="middle">ViewModels</text>
+      <text class="dg-mono-d" x="280" y="110" text-anchor="middle" style="font-size:9px">YappyNotes.ViewModels</text>
+    </g>
+    <g>
+      <rect class="dg-box" x="424" y="60" width="120" height="68" rx="8"/>
+      <text class="dg-title" x="484" y="90" text-anchor="middle">Core</text>
+      <text class="dg-mono-d" x="484" y="110" text-anchor="middle" style="font-size:9px">YappyNotes.Core</text>
+    </g>
+    <g>
+      <rect class="dg-box" x="628" y="60" width="120" height="68" rx="8"/>
+      <text class="dg-title" x="688" y="90" text-anchor="middle">Data</text>
+      <text class="dg-mono-d" x="688" y="110" text-anchor="middle" style="font-size:9px">YappyNotes.Data</text>
+    </g>
+
+    <!-- what lives in each -->
+    <text class="dg-sub" x="76"  y="150" text-anchor="middle">Avalonia views</text>
+    <text class="dg-sub" x="76"  y="164" text-anchor="middle">WindowManager</text>
+    <text class="dg-sub" x="76"  y="178" text-anchor="middle">the bootstrap</text>
+
+    <text class="dg-sub" x="280" y="150" text-anchor="middle">NoteViewModel</text>
+    <text class="dg-sub" x="280" y="164" text-anchor="middle">ManagerViewModel</text>
+    <text class="dg-sub" x="280" y="178" text-anchor="middle">IWindowManager</text>
+
+    <text class="dg-sub" x="484" y="150" text-anchor="middle">Note, NoteTimer</text>
+    <text class="dg-sub" x="484" y="164" text-anchor="middle">NoteService, AutoSave</text>
+    <text class="dg-sub" x="484" y="178" text-anchor="middle">INoteRepository</text>
+
+    <text class="dg-sub" x="688" y="150" text-anchor="middle">SqliteNoteRepository</text>
+    <text class="dg-sub" x="688" y="164" text-anchor="middle">NoteDatabase</text>
+    <text class="dg-sub" x="688" y="178" text-anchor="middle">Migrator</text>
+
+    <!-- App -> ViewModels -->
+    <g data-tinyfly="f1-a1" opacity="1">
+      <path data-tinyfly="f1-a1-line" class="dg-arrow" d="M144 94 H 206"
+            stroke-dasharray="62" stroke-dashoffset="0"/>
+      <polygon data-tinyfly="f1-a1-head" class="dg-arrow-head" points="204,88 218,94 204,100" opacity="1"/>
+    </g>
+
+    <!-- ViewModels -> Core -->
+    <g data-tinyfly="f1-a2" opacity="1">
+      <path data-tinyfly="f1-a2-line" class="dg-arrow" d="M348 94 H 410"
+            stroke-dasharray="62" stroke-dashoffset="0"/>
+      <polygon data-tinyfly="f1-a2-head" class="dg-arrow-head" points="408,88 422,94 408,100" opacity="1"/>
+    </g>
+
+    <!-- Data -> Core -->
+    <g data-tinyfly="f1-a3" opacity="1">
+      <path data-tinyfly="f1-a3-line" class="dg-arrow" d="M620 94 H 558"
+            stroke-dasharray="62" stroke-dashoffset="0"/>
+      <polygon data-tinyfly="f1-a3-head" class="dg-arrow-head" points="560,88 546,94 560,100" opacity="1"/>
+    </g>
+
+    <!-- App -> Data, the composition root -->
+    <g data-tinyfly="f1-comp" opacity="1">
+      <path class="dg-arrow" d="M76 128 V 224 H 688 V 142" stroke-dasharray="7 5"/>
+      <polygon class="dg-arrow-head" points="682,140 694,140 688,128"/>
+    </g>
+    <text data-tinyfly="f1-complabel" opacity="1" class="dg-sub" x="382" y="244" text-anchor="middle">
+      App sees Data in exactly one place: AppServices, the composition root
+    </text>
+  </svg>
+    </div>
+
+  <script type="application/json" data-tinyfly-timeline>
+  {
+    "formatVersion": 1,
+    "id": "yappynotes-layers",
+    "config": {
+      "duration": 6600,
+      "markers": [
+        { "id": "projects", "time": 0,
+          "label": "Four projects. Core is the domain; Data is the only one that contains SQL." },
+        { "id": "app-vm", "time": 1200,
+          "label": "App depends on ViewModels — the views bind to view-models and to nothing else." },
+        { "id": "vm-core", "time": 2400, "pause": true,
+          "question": "Data is the only project that knows SQL exists. Which way does its arrow point?",
+          "label": "ViewModels depends on Core, and on CommunityToolkit.Mvvm. Not on Avalonia." },
+        { "id": "data-core", "time": 3600,
+          "label": "Data depends on Core — the arrow points in. Core defines INoteRepository; Data answers it." },
+        { "id": "app-data", "time": 5000,
+          "label": "App reaches Data once, in AppServices, to wire SqliteNoteRepository to INoteRepository." },
+        { "id": "no-back", "time": 6600,
+          "label": "And nothing points back. ArchitectureTests reads GetReferencedAssemblies() and fails if it ever does." }
+      ]
+    },
+    "tracks": [
+      { "id": "a1-fade", "target": "f1-a1", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 400, "value": 0 }, { "time": 500, "value": 1 } ] },
+      { "id": "a1-draw", "target": "f1-a1-line", "property": "strokeDashoffset",
+        "keyframes": [ { "time": 0, "value": 62 }, { "time": 500, "value": 62 }, { "time": 1100, "value": 0, "easing": "ease-out" } ] },
+      { "id": "a1-head", "target": "f1-a1-head", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 1000, "value": 0 }, { "time": 1200, "value": 1 } ] },
+
+      { "id": "a2-fade", "target": "f1-a2", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 1600, "value": 0 }, { "time": 1700, "value": 1 } ] },
+      { "id": "a2-draw", "target": "f1-a2-line", "property": "strokeDashoffset",
+        "keyframes": [ { "time": 0, "value": 62 }, { "time": 1700, "value": 62 }, { "time": 2300, "value": 0, "easing": "ease-out" } ] },
+      { "id": "a2-head", "target": "f1-a2-head", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 2200, "value": 0 }, { "time": 2400, "value": 1 } ] },
+
+      { "id": "a3-fade", "target": "f1-a3", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 2800, "value": 0 }, { "time": 2900, "value": 1 } ] },
+      { "id": "a3-draw", "target": "f1-a3-line", "property": "strokeDashoffset",
+        "keyframes": [ { "time": 0, "value": 62 }, { "time": 2900, "value": 62 }, { "time": 3500, "value": 0, "easing": "ease-out" } ] },
+      { "id": "a3-head", "target": "f1-a3-head", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 3400, "value": 0 }, { "time": 3600, "value": 1 } ] },
+
+      { "id": "comp", "target": "f1-comp", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4100, "value": 0 }, { "time": 4800, "value": 1, "easing": "ease-out" } ] },
+      { "id": "complabel", "target": "f1-complabel", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4600, "value": 0 }, { "time": 5000, "value": 1 } ] },
+
+      { "id": "back", "target": "f1-back", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 5400, "value": 0 }, { "time": 5900, "value": 1, "easing": "ease-out" } ] },
+      { "id": "xmark", "target": "f1-x", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 6000, "value": 0 }, { "time": 6300, "value": 1 } ] },
+      { "id": "backlabel", "target": "f1-backlabel", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 6100, "value": 0 }, { "time": 6600, "value": 1 } ] }
+    ]
+  }
+  </script>
+
+  <figcaption>
+    Dependencies in YappyNotes, one arrow at a time. The dashed arrow is the only
+    one that skips a layer, and it exists so that <code>AppServices</code> can
+    hand <code>SqliteNoteRepository</code> to everything above it.
+  </figcaption>
+
+  <details class="steps">
+    <summary>The same six steps, as text</summary>
+    <ol>
+      <li><b>Four projects.</b> Core is the domain; Data is the only one that contains SQL.</li>
+      <li><b>App → ViewModels.</b> Views bind to view-models and to nothing else.</li>
+      <li><b>ViewModels → Core</b>, and to CommunityToolkit.Mvvm. Not to Avalonia.</li>
+      <li><b>Data → Core.</b> The arrow points in: Core defines <code>INoteRepository</code>, Data answers it.</li>
+      <li><b>App → Data</b>, once, in <code>AppServices</code>, to wire the implementation to the interface.</li>
+      <li><b>Nothing points back.</b> <code>ArchitectureTests</code> reads <code>GetReferencedAssemblies()</code> and fails if it ever does.</li>
+    </ol>
+  </details>
+</figure>
+
+<p>
+  The unusual call here is that <strong>view-models get their own project.</strong>
+  A folder inside the app project would have been less ceremony, and it would have
+  let an Avalonia type leak into a view-model the first time someone needed a
+  colour or a screen bound — at which point the layer quietly stops being a layer.
+  <code>YappyNotes.ViewModels</code> carries no Avalonia package reference, so that
+  mistake is a compile error instead of a code review. The side effect is the one
+  that pays for it daily: every view-model test runs with <code>new</code>, on no
+  UI thread, in milliseconds.
+</p>
+
+<p>
+  Two tests keep it that way, and both were verified by breaking the rule on
+  purpose and watching them fail:
+  <code>YappyNotes.Core.Tests/ArchitectureTests</code> asserts that Core
+  references nothing but the BCL, and
+  <code>YappyNotes.ViewModels.Tests/ArchitectureTests</code> asserts that
+  ViewModels references no Avalonia assembly and nothing beyond
+  CommunityToolkit.Mvvm. They read
+  <code>Assembly.GetReferencedAssemblies()</code>, which lists what the compiled
+  code actually <em>uses</em> — the compiler drops a <code>PackageReference</code>
+  nothing touches — so an unused package will not fail them and a used one will.
+  That is the distinction worth having.
+</p>
+
+<div class="callout">
+  <strong>The one place a layer has to reach upward</strong>
+  <p>
+    <code>ManagerViewModel.NewNoteCommand</code> has to open a window, and windows
+    live in App. <code>IWindowManager</code> is that seam: it is declared in
+    ViewModels and implemented in App, so the view-model asks for a note to be
+    shown and a test asserts against a fake that recorded the ask.
+    <code>IUiDispatcher</code>, <code>ILinkLauncher</code> and
+    <code>IThemeApplier</code> are the same pattern for the same reason.
+  </p>
+</div>
+
+<h2>Where the state lives</h2>
+
+<p>
+  All of it is in one SQLite file, in the place each platform expects it —
+  <code>~/.local/share/YappyNotes/notes.db</code> on Linux,
+  <code>%APPDATA%\YappyNotes\</code> on Windows,
+  <code>~/Library/Application&nbsp;Support/YappyNotes/</code> on macOS.
+  <code>UserPaths</code> in Core resolves that in one place, and it also honours
+  <code>YAPPYNOTES_DATA_DIR</code>, which is what
+  <code>scripts/dev-start.sh&nbsp;--sandbox</code> sets. Code that builds the path
+  from <code>$HOME</code> is a bug on two of the three platforms.
+  On Linux it honours <code>XDG_DATA_HOME</code>, which is correct and
+  occasionally surprising: some snap-packaged apps point that variable into their
+  own sandbox, so YappyNotes started from a snap VS Code's terminal reads a
+  different <code>notes.db</code> from one started by a desktop launcher, and the
+  notes look as though they have vanished when they have not.
+</p>
+
+<p>
+  There are three tables. <code>notes</code> and <code>settings</code> arrived in
+  migration step 1; <code>note_timers</code> in step 2.
+</p>
+
+<table class="fields">
+  <thead><tr><th>notes</th><th>Why it is there</th></tr></thead>
+  <tbody>
+    <tr><td class="k">Id</td><td>TEXT primary key, a UUIDv7 generated in the app</td></tr>
+    <tr><td class="k">Title, Content, Color</td><td>the note itself</td></tr>
+    <tr><td class="k">X, Y, Width, Height</td><td>where the window is, and how big</td></tr>
+    <tr><td class="k">IsAlwaysOnTop</td><td>pinned above other windows</td></tr>
+    <tr><td class="k">IsArchived</td><td>what the delete button actually sets</td></tr>
+    <tr><td class="k">CreatedUtc, ModifiedUtc</td><td>ISO-8601 text, UTC</td></tr>
+  </tbody>
+</table>
+
+<p>
+  <strong>A note's window geometry is on the note row</strong>, not in a second
+  store. The bootstrap restores windows from it, and a note <em>is</em> its window;
+  two records would drift. The cost is a guard: setting <code>Position</code>,
+  <code>Width</code> or <code>Height</code> on a window raises that window's own
+  change events, which write straight back to the note and schedule a save — so
+  restoring a note nobody touched would rewrite every one of them on every start.
+  <code>NoteWindow._applyingGeometry</code> is the guard, and it has a test that
+  fails when it is removed.
+</p>
+
+<p>
+  <strong>Ids are UUIDv7</strong> — <code>Guid.CreateVersion7()</code>, never
+  <code>Guid.NewGuid()</code>. A v7 carries a millisecond timestamp in its
+  high-order bits, so <code>ORDER BY Id</code> <em>is</em> creation order with no
+  second column and no extra index, and inserts append to the right-hand edge of
+  the B-tree instead of scattering through it. Stored as
+  <code>Guid.ToString()</code> — lowercase, hyphenated, big-endian hex — which
+  SQLite's default <code>BINARY</code> collation already sorts correctly. Three
+  ways to break that are silent: a <code>Guid.NewGuid()</code> in a new code path,
+  a different string format mixing two spellings into one column, and
+  <code>ToByteArray()</code>, whose default overload is little-endian and
+  byte-reverses exactly the fields the timestamp lives in.
+</p>
+
+<p>
+  Migrations are numbered SQL steps gated on <code>PRAGMA user_version</code>.
+  <code>Migrator</code> runs the steps above the current number, each in a
+  transaction that also records the new version, so an interrupted run leaves the
+  database at a version it really is. <strong>Steps are append-only and never
+  edited once released</strong> — an edited migration leaves every database that
+  already ran it in a state no code path can reach, on a machine you cannot look
+  at.
+</p>
+
+<h2>How a keystroke reaches the disk</h2>
+
+<p>
+  Nothing in YappyNotes is saved by pressing a button, which means typing has to
+  become writes, and the interesting question is how many. The answer is one per
+  burst of typing, and the mechanism is a per-note debounce that
+  <strong>restarts on every change</strong> rather than a timer that fires on a
+  schedule.
+</p>
+
+<figure data-tinyfly-embed data-fullscreen="true"
+        data-scenario-legend="Then what happens"
+        data-options='{"stepMode": true}'
+        data-alt="A keystroke travelling from a note window through the autosave debounce into a single SQLite UPDATE, with the debounce restarting on each keystroke">
+  <div class="dg-scroll">
+    <svg viewBox="0 0 764 400" role="img"
+       aria-label="A keystroke travelling from a note window through the autosave debounce into a single SQLite UPDATE">
+
+    <!-- the note on the desktop -->
+    <rect class="dg-box" x="24" y="52" width="230" height="130" rx="10"/>
+    <path class="dg-rule" d="M24 82 H 254"/>
+    <text class="dg-label" x="40" y="74">Break</text>
+    <text data-tinyfly="f2-typed" class="dg-mono" x="40" y="112">Back in 5:00</text>
+    <text class="dg-sub" x="40" y="140">NoteWindow</text>
+    <text class="dg-sub" x="40" y="158">two-way binding</text>
+
+    <g data-tinyfly="f2-close" opacity="0">
+      <rect x="180" y="58" width="62" height="20" rx="10" fill="#ef4444"/>
+      <text x="211" y="72" text-anchor="middle" style="font:600 11px ui-sans-serif,system-ui,sans-serif;fill:#fff">closed</text>
+    </g>
+
+    <!-- keystrokes -->
+    <circle data-tinyfly="f2-k1" cx="60"  cy="212" r="11" fill="#3b82f6" opacity="1"/>
+    <circle data-tinyfly="f2-k2" cx="102" cy="212" r="11" fill="#3b82f6" opacity="1"/>
+    <circle data-tinyfly="f2-k3" cx="144" cy="212" r="11" fill="#3b82f6" opacity="1"/>
+    <text class="dg-sub" x="24" y="244">keystrokes, about 300 ms apart</text>
+
+    <text data-tinyfly="f2-writes" class="dg-mono" x="24" y="296">writes to disk: 0</text>
+    <text class="dg-sub" x="24" y="318">one UPDATE for the whole burst</text>
+
+    <!-- the path down -->
+    <g>
+      <rect class="dg-box" x="330" y="24" width="414" height="52" rx="8"/>
+      <rect data-tinyfly="f2-hl-content" class="dg-hl" x="330" y="24" width="414" height="52" rx="8" fill="#3b82f6" opacity="0"/>
+      <text class="dg-mono" x="348" y="48">NoteViewModel.Content</text>
+      <text class="dg-sub" x="348" y="66">a setter that actually changed something</text>
+    </g>
+
+    <path class="dg-arrow" d="M380 76 V 92"/>
+    <polygon class="dg-arrow-head" points="374,92 386,92 380,102"/>
+
+    <g>
+      <rect class="dg-box" x="330" y="102" width="414" height="86" rx="8"/>
+      <rect data-tinyfly="f2-hl-auto" class="dg-hl" x="330" y="102" width="414" height="86" rx="8" fill="#f59e0b" opacity="0"/>
+      <text class="dg-mono" x="348" y="126">AutoSaveService.Schedule(note)</text>
+      <text class="dg-sub" x="348" y="144">one pending write per note, 750 ms</text>
+      <rect class="dg-dim" x="348" y="156" width="240" height="12" rx="6"/>
+      <rect data-tinyfly="f2-bar" x="348" y="156" width="240" height="12" rx="6" fill="#f59e0b"
+            style="transform-box: fill-box; transform-origin: 0% 50%"/>
+      <text data-tinyfly="f2-elapsed" class="dg-mono-d" x="602" y="167">750 ms</text>
+    </g>
+
+    <g data-tinyfly="f2-fire" opacity="1">
+      <path class="dg-arrow" d="M380 188 V 210"/>
+      <polygon class="dg-arrow-head" points="374,210 386,210 380,220"/>
+    </g>
+
+    <g>
+      <rect class="dg-box" x="330" y="220" width="414" height="50" rx="8"/>
+      <rect data-tinyfly="f2-hl-service" class="dg-hl" x="330" y="220" width="414" height="50" rx="8" fill="#3b82f6" opacity="0"/>
+      <text class="dg-mono" x="348" y="243">NoteService.SaveAsync(note)</text>
+      <text class="dg-sub" x="348" y="260">stamps ModifiedUtc on both copies</text>
+    </g>
+
+    <g data-tinyfly="f2-a2" opacity="1">
+      <path class="dg-arrow" d="M380 270 V 288"/>
+      <polygon class="dg-arrow-head" points="374,288 386,288 380,298"/>
+    </g>
+
+    <g>
+      <rect class="dg-box" x="330" y="298" width="414" height="50" rx="8"/>
+      <rect data-tinyfly="f2-hl-repo" class="dg-hl" x="330" y="298" width="414" height="50" rx="8" fill="#3b82f6" opacity="0"/>
+      <text class="dg-mono" x="348" y="321">INoteRepository.UpdateAsync(note)</text>
+      <text class="dg-sub" x="348" y="338">the contract, not an implementation</text>
+    </g>
+
+    <g data-tinyfly="f2-a3" opacity="1">
+      <path class="dg-arrow" d="M380 348 V 360"/>
+      <polygon class="dg-arrow-head" points="374,360 386,360 380,370"/>
+    </g>
+
+    <g>
+      <rect class="dg-box" x="330" y="370" width="414" height="26" rx="8"/>
+      <rect data-tinyfly="f2-hl-sqlite" class="dg-hl" x="330" y="370" width="414" height="26" rx="8" fill="#22c55e" opacity="0"/>
+      <text class="dg-mono" x="348" y="388">SqliteNoteRepository — one UPDATE</text>
+    </g>
+  </svg>
+    </div>
+
+  <script type="application/json" data-tinyfly-timeline
+          data-scenario="settles" data-scenario-label="Typing stops">
+  {
+    "formatVersion": 1,
+    "id": "settles",
+    "config": {
+      "duration": 6400,
+      "markers": [
+        { "id": "idle",  "time": 0,
+          "label": "Nothing pending. What is on screen and what is on disk agree." },
+        { "id": "key1",  "time": 900,
+          "label": "A keystroke. NoteViewModel.Content writes straight through to the Note and calls Schedule(note): one pending write, due in 750 ms." },
+        { "id": "key2",  "time": 2000, "pause": true,
+          "question": "Another keystroke arrives 300 ms into the debounce. Does it start a second pending write?",
+          "label": "No. Schedule finds an entry already there, replaces the note and moves the timer — so the countdown starts again from zero." },
+        { "id": "key3",  "time": 3100,
+          "label": "And again. Three keystrokes so far, and still nothing has been written." },
+        { "id": "quiet", "time": 4500,
+          "label": "Typing stops, the 750 ms runs out, and the debounce fires on a thread-pool thread." },
+        { "id": "write", "time": 6400,
+          "label": "One UPDATE. The pending entry held the caller's note rather than a copy, so what reaches disk is the latest text, not a snapshot of the keystroke that started the debounce." }
+      ]
+    },
+    "tracks": [
+      { "id": "typed", "target": "f2-typed", "property": "text",
+        "keyframes": [ { "time": 0, "value": "Back in" }, { "time": 900, "value": "Back in 5" },
+                       { "time": 2000, "value": "Back in 5:" }, { "time": 3100, "value": "Back in 5:00" } ] },
+      { "id": "close", "target": "f2-close", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 } ] },
+      { "id": "k1", "target": "f2-k1", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.12 }, { "time": 880, "value": 0.12 }, { "time": 900, "value": 1 } ] },
+      { "id": "k2", "target": "f2-k2", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.12 }, { "time": 1980, "value": 0.12 }, { "time": 2000, "value": 1 } ] },
+      { "id": "k3", "target": "f2-k3", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.12 }, { "time": 3080, "value": 0.12 }, { "time": 3100, "value": 1 } ] },
+      { "id": "hl-content", "target": "f2-hl-content", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 900, "value": 0.2 }, { "time": 1400, "value": 0 },
+                       { "time": 2000, "value": 0.2 }, { "time": 2500, "value": 0 },
+                       { "time": 3100, "value": 0.2 }, { "time": 3600, "value": 0 } ] },
+      { "id": "hl-auto", "target": "f2-hl-auto", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 900, "value": 0 }, { "time": 1000, "value": 0.12 },
+                       { "time": 4500, "value": 0.12 }, { "time": 4700, "value": 0 } ] },
+      { "id": "bar", "target": "f2-bar", "property": "scaleX",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 900, "value": 0 },
+                       { "time": 1960, "value": 0.4, "easing": "linear" }, { "time": 1990, "value": 0 },
+                       { "time": 3060, "value": 0.4, "easing": "linear" }, { "time": 3090, "value": 0 },
+                       { "time": 4400, "value": 1, "easing": "linear" }, { "time": 6400, "value": 1 } ] },
+      { "id": "elapsed", "target": "f2-elapsed", "property": "text",
+        "keyframes": [ { "time": 0, "value": "nothing pending" }, { "time": 900, "value": "0 ms" },
+                       { "time": 1960, "value": "300 ms" }, { "time": 1990, "value": "0 ms — restarted" },
+                       { "time": 3060, "value": "300 ms" }, { "time": 3090, "value": "0 ms — restarted" },
+                       { "time": 4400, "value": "750 ms — fires" } ] },
+      { "id": "fire", "target": "f2-fire", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4500, "value": 0 }, { "time": 4800, "value": 1 } ] },
+      { "id": "hl-service", "target": "f2-hl-service", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4800, "value": 0 }, { "time": 5000, "value": 0.2 }, { "time": 5500, "value": 0 } ] },
+      { "id": "a2", "target": "f2-a2", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 5300, "value": 0 }, { "time": 5500, "value": 1 } ] },
+      { "id": "hl-repo", "target": "f2-hl-repo", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 5500, "value": 0 }, { "time": 5700, "value": 0.2 }, { "time": 6100, "value": 0 } ] },
+      { "id": "a3", "target": "f2-a3", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 5900, "value": 0 }, { "time": 6100, "value": 1 } ] },
+      { "id": "hl-sqlite", "target": "f2-hl-sqlite", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 6100, "value": 0 }, { "time": 6400, "value": 0.35 } ] },
+      { "id": "writes", "target": "f2-writes", "property": "text",
+        "keyframes": [ { "time": 0, "value": "writes to disk: 0" }, { "time": 6300, "value": "writes to disk: 1" } ] }
+    ]
+  }
+  </script>
+
+  <script type="application/json" data-tinyfly-timeline
+          data-scenario="closes" data-scenario-label="The note is closed mid-debounce">
+  {
+    "formatVersion": 1,
+    "id": "closes",
+    "config": {
+      "duration": 5200,
+      "markers": [
+        { "id": "idle",  "time": 0,
+          "label": "Nothing pending. What is on screen and what is on disk agree." },
+        { "id": "key1",  "time": 900,
+          "label": "A keystroke. One pending write, due in 750 ms." },
+        { "id": "key2",  "time": 2000,
+          "label": "Another keystroke. The debounce restarts, exactly as before." },
+        { "id": "close", "time": 3200, "pause": true,
+          "question": "The reader closes the note 300 ms into the debounce. Is that pending write lost?",
+          "label": "No. Closing is synchronous and flushing is not, so the window cancels its own close, calls FlushAsync, and closes again once the write is done. App shutdown does the same thing for every note at once." },
+        { "id": "write", "time": 5200,
+          "label": "Flushed, not cancelled. Dropping a pending write here would lose the last sentence somebody typed, which is the one thing autosave exists to prevent." }
+      ]
+    },
+    "tracks": [
+      { "id": "typed", "target": "f2-typed", "property": "text",
+        "keyframes": [ { "time": 0, "value": "Back in" }, { "time": 900, "value": "Back in 5" },
+                       { "time": 2000, "value": "Back in 5:" } ] },
+      { "id": "close", "target": "f2-close", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 3100, "value": 0 }, { "time": 3200, "value": 1 } ] },
+      { "id": "k1", "target": "f2-k1", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.12 }, { "time": 880, "value": 0.12 }, { "time": 900, "value": 1 } ] },
+      { "id": "k2", "target": "f2-k2", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.12 }, { "time": 1980, "value": 0.12 }, { "time": 2000, "value": 1 } ] },
+      { "id": "k3", "target": "f2-k3", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.12 } ] },
+      { "id": "hl-content", "target": "f2-hl-content", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 900, "value": 0.2 }, { "time": 1400, "value": 0 },
+                       { "time": 2000, "value": 0.2 }, { "time": 2500, "value": 0 } ] },
+      { "id": "hl-auto", "target": "f2-hl-auto", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 900, "value": 0 }, { "time": 1000, "value": 0.12 },
+                       { "time": 3200, "value": 0.12 }, { "time": 3500, "value": 0 } ] },
+      { "id": "bar", "target": "f2-bar", "property": "scaleX",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 900, "value": 0 },
+                       { "time": 1960, "value": 0.4, "easing": "linear" }, { "time": 1990, "value": 0 },
+                       { "time": 3200, "value": 0.44, "easing": "linear" }, { "time": 3400, "value": 0 },
+                       { "time": 5200, "value": 0 } ] },
+      { "id": "elapsed", "target": "f2-elapsed", "property": "text",
+        "keyframes": [ { "time": 0, "value": "nothing pending" }, { "time": 900, "value": "0 ms" },
+                       { "time": 1960, "value": "300 ms" }, { "time": 1990, "value": "0 ms — restarted" },
+                       { "time": 3200, "value": "330 ms — flushed" }, { "time": 3400, "value": "nothing pending" } ] },
+      { "id": "fire", "target": "f2-fire", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 3300, "value": 0 }, { "time": 3600, "value": 1 } ] },
+      { "id": "hl-service", "target": "f2-hl-service", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 3600, "value": 0 }, { "time": 3800, "value": 0.2 }, { "time": 4300, "value": 0 } ] },
+      { "id": "a2", "target": "f2-a2", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4100, "value": 0 }, { "time": 4300, "value": 1 } ] },
+      { "id": "hl-repo", "target": "f2-hl-repo", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4300, "value": 0 }, { "time": 4500, "value": 0.2 }, { "time": 4900, "value": 0 } ] },
+      { "id": "a3", "target": "f2-a3", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4700, "value": 0 }, { "time": 4900, "value": 1 } ] },
+      { "id": "hl-sqlite", "target": "f2-hl-sqlite", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4900, "value": 0 }, { "time": 5200, "value": 0.35 } ] },
+      { "id": "writes", "target": "f2-writes", "property": "text",
+        "keyframes": [ { "time": 0, "value": "writes to disk: 0" }, { "time": 5100, "value": "writes to disk: 1" } ] }
+    ]
+  }
+  </script>
+
+  <figcaption>
+    The same markup, two endings. Switch between them with the buttons under the
+    controls; comparable moments carry the same step ids, so you keep your place.
+  </figcaption>
+
+  <details class="steps">
+    <summary>The same steps, as text</summary>
+    <p><b>Typing stops.</b></p>
+    <ol>
+      <li>Nothing pending; screen and disk agree.</li>
+      <li>A keystroke. <code>NoteViewModel.Content</code> writes through to the <code>Note</code> and calls <code>Schedule(note)</code> — one pending write, due in 750&nbsp;ms.</li>
+      <li>A second keystroke 300&nbsp;ms later. <code>Schedule</code> finds an entry already there, replaces the note and moves the timer: <b>the countdown restarts from zero</b>.</li>
+      <li>A third. Three keystrokes, still nothing written.</li>
+      <li>Typing stops; the 750&nbsp;ms runs out and the debounce fires on a thread-pool thread.</li>
+      <li>One <code>UPDATE</code>, carrying the latest text — the pending entry holds the caller's note, not a copy of it.</li>
+    </ol>
+    <p><b>The note is closed mid-debounce.</b> Steps 1–3 are the same; then the window cancels its own close, calls <code>AutoSaveService.FlushAsync</code>, and closes again once the write is done. The pending write is flushed, never cancelled.</p>
+  </details>
+</figure>
+
+<p>
+  Two properties of <code>AutoSaveService</code> are worth stating flatly, because
+  both are load-bearing and neither is obvious from the call site.
+</p>
+
+<p>
+  <strong>It saves on change, never on a schedule.</strong> There is no sweep that
+  periodically writes whatever looks dirty. That is not tidiness: the stream timer
+  — the next section — puts a running countdown on a note, and a sweeping saver
+  would write to disk every second forever. The decision was made in
+  <code>docs/plan.md</code> before <code>AutoSaveService</code> was written,
+  precisely so it would not have to be undone afterwards.
+</p>
+
+<p>
+  <strong>A pending write holds the caller's note, not a copy.</strong> So the
+  write that eventually happens carries whatever the note says at that moment,
+  rather than the state it was in when the first keystroke started the debounce.
+  And if a window is reopened while a write is pending, <code>Schedule</code>
+  replaces the stored reference — the same id may arrive as a different object,
+  and the newer one wins.
+</p>
+
+<div class="callout">
+  <strong>One note, one view-model, one window</strong>
+  <p>
+    Both the manager and the desktop can open a note, and
+    <code>WindowManager</code> builds a <code>NoteViewModel</code> once and hands
+    the same one back — which is why <code>IWindowManager.ShowNoteAsync</code>
+    takes an id. If each caller built its own, there would be two
+    <code>Note</code> objects for one note, both held by the autosave, and
+    whichever wrote last would quietly undo the other.
+  </p>
+</div>
+
+<h2>The timer, which never writes while it runs</h2>
+
+<p>
+  A note can carry a stream timer: a countdown for <em>back in 5:00</em> during a
+  break, or a count-up for <em>live for 2:14:33</em>. It pauses, resumes and
+  restarts, and it survives closing the app. It is also the most interesting thing
+  in the codebase, because the whole feature turns on one decision:
+  <strong>the stored timer does not change while it runs.</strong>
+</p>
+
+<p>
+  Five fields are persisted in <code>note_timers</code>, keyed on the note id, and
+  nothing else:
+</p>
+
+<table class="fields">
+  <thead><tr><th>note_timers</th><th></th></tr></thead>
+  <tbody>
+    <tr><td class="k">Direction</td><td><code>CountDown</code> or <code>CountUp</code></td></tr>
+    <tr><td class="k">Duration</td><td>how long a countdown was set for</td></tr>
+    <tr><td class="k">Label</td><td>what it is for — "Back in", "Live for"</td></tr>
+    <tr><td class="k">StartedAtUtc</td><td>when the current running stretch began; null means not running</td></tr>
+    <tr><td class="k">Accumulated</td><td>time banked from stretches that have already been paused</td></tr>
+  </tbody>
+</table>
+
+<p>
+  The number on screen is a pure function of those and <code>now</code>:
+</p>
+
+<pre><code>running   remaining = Duration - (Accumulated + (now - StartedAtUtc))
+paused    remaining = Duration -  Accumulated</code></pre>
+
+<p>
+  <code>Start</code> sets <code>StartedAtUtc</code>. <code>Pause</code> banks the
+  stretch that has been running into <code>Accumulated</code> and clears
+  <code>StartedAtUtc</code>. <code>Restart</code> zeroes <code>Accumulated</code>
+  and starts again; <code>Reset</code> zeroes both and stops. Finished is not
+  stored at all — it is <code>remaining &lt;= 0</code>, asked whenever anyone
+  looks. Those four methods are the complete list of things that change a stored
+  field <em>while the timer is running</em>. The label, the length and the
+  direction are settable too — but only while it is stopped, which is what
+  <code>NoteTimerViewModel.CanEdit</code> enforces, and each of those setters
+  writes only when the value actually changed.
+</p>
+
+<figure data-tinyfly-embed data-fullscreen="true"
+        data-options='{"stepMode": true}'
+        data-alt="A timer session from not-started through running, paused, running again and finished, with a write counter that only moves on the transitions">
+  <div class="dg-scroll">
+    <svg viewBox="0 0 764 310" role="img"
+       aria-label="A timer session from not started through running, paused, running again and finished, with a write counter that only moves on the transitions">
+
+    <!-- the chain of states -->
+    <text class="dg-sub" x="150" y="16" text-anchor="middle">Start(now)</text>
+    <text class="dg-sub" x="306" y="16" text-anchor="middle">Pause(now)</text>
+    <text class="dg-sub" x="462" y="16" text-anchor="middle">Start(now)</text>
+    <text class="dg-sub" x="618" y="16" text-anchor="middle">remaining ≤ 0</text>
+
+    <g>
+      <rect class="dg-box" x="20" y="24" width="100" height="40" rx="8"/>
+      <rect data-tinyfly="f3-h1" class="dg-hl" x="20" y="24" width="100" height="40" rx="8" fill="#3b82f6" opacity="0"/>
+      <text class="dg-label" x="70" y="49" text-anchor="middle" style="font-size:12px">not started</text>
+    </g>
+    <path class="dg-arrow" d="M124 44 H 166"/><polygon class="dg-arrow-head" points="166,38 176,44 166,50"/>
+    <g>
+      <rect class="dg-box" x="176" y="24" width="100" height="40" rx="8"/>
+      <rect data-tinyfly="f3-h2" class="dg-hl" x="176" y="24" width="100" height="40" rx="8" fill="#22c55e" opacity="0"/>
+      <text class="dg-label" x="226" y="49" text-anchor="middle" style="font-size:12px">running</text>
+    </g>
+    <path class="dg-arrow" d="M280 44 H 322"/><polygon class="dg-arrow-head" points="322,38 332,44 322,50"/>
+    <g>
+      <rect class="dg-box" x="332" y="24" width="100" height="40" rx="8"/>
+      <rect data-tinyfly="f3-h3" class="dg-hl" x="332" y="24" width="100" height="40" rx="8" fill="#f59e0b" opacity="0"/>
+      <text class="dg-label" x="382" y="49" text-anchor="middle" style="font-size:12px">paused</text>
+    </g>
+    <path class="dg-arrow" d="M436 44 H 478"/><polygon class="dg-arrow-head" points="478,38 488,44 478,50"/>
+    <g>
+      <rect class="dg-box" x="488" y="24" width="100" height="40" rx="8"/>
+      <rect data-tinyfly="f3-h4" class="dg-hl" x="488" y="24" width="100" height="40" rx="8" fill="#22c55e" opacity="0"/>
+      <text class="dg-label" x="538" y="49" text-anchor="middle" style="font-size:12px">running</text>
+    </g>
+    <path class="dg-arrow" d="M592 44 H 634"/><polygon class="dg-arrow-head" points="634,38 644,44 634,50"/>
+    <g>
+      <rect class="dg-box" x="644" y="24" width="100" height="40" rx="8"/>
+      <rect data-tinyfly="f3-h5" class="dg-hl" x="644" y="24" width="100" height="40" rx="8" fill="#ef4444" opacity="0"/>
+      <text class="dg-label" x="694" y="49" text-anchor="middle" style="font-size:12px">finished</text>
+    </g>
+
+    <!-- what is stored -->
+    <rect class="dg-panel" x="20" y="96" width="400" height="184" rx="8"/>
+    <text class="dg-label" x="36" y="120">the note_timers row</text>
+
+    <rect data-tinyfly="f3-hr-started" x="28" y="200" width="384" height="24" rx="4" fill="#3b82f6" opacity="0"/>
+    <rect data-tinyfly="f3-hr-accum"   x="28" y="224" width="384" height="24" rx="4" fill="#3b82f6" opacity="0"/>
+
+    <text class="dg-mono-d" x="36" y="146">Direction</text>
+    <text class="dg-mono"   x="212" y="146">CountDown</text>
+    <text class="dg-mono-d" x="36" y="170">Duration</text>
+    <text class="dg-mono"   x="212" y="170">00:05:00</text>
+    <text class="dg-mono-d" x="36" y="194">Label</text>
+    <text class="dg-mono"   x="212" y="194">Back in</text>
+    <text class="dg-mono-d" x="36" y="218">StartedAtUtc</text>
+    <text data-tinyfly="f3-started" class="dg-mono" x="212" y="218">null</text>
+    <text class="dg-mono-d" x="36" y="242">Accumulated</text>
+    <text data-tinyfly="f3-accum" class="dg-mono" x="212" y="242">00:00:00</text>
+    <text class="dg-sub" x="36" y="266">and nothing else — no "seconds remaining"</text>
+
+    <!-- what the window shows -->
+    <text class="dg-label" x="444" y="120">what the note window shows</text>
+    <text class="dg-sub" x="592" y="150" text-anchor="middle">Back in</text>
+    <text data-tinyfly="f3-display" x="592" y="196" text-anchor="middle"
+          style="font:600 40px ui-monospace,Menlo,Consolas,monospace;fill:#22c55e">5:00</text>
+    <text class="dg-sub" x="444" y="224">= Duration − (Accumulated + (now − StartedAtUtc))</text>
+    <text data-tinyfly="f3-now" class="dg-mono-d" x="444" y="248">now  12:00:00</text>
+    <text data-tinyfly="f3-writes" class="dg-mono" x="444" y="272">writes to disk: 0</text>
+
+    <text data-tinyfly="f3-verdict" class="dg-sub" x="20" y="302">A five-minute countdown that has not been started.</text>
+  </svg>
+    </div>
+
+  <script type="application/json" data-tinyfly-timeline>
+  {
+    "formatVersion": 1,
+    "id": "timer-session",
+    "config": {
+      "duration": 8400,
+      "markers": [
+        { "id": "set",    "time": 0,
+          "label": "A five-minute countdown, not started. StartedAtUtc is null and nothing has been banked." },
+        { "id": "start",  "time": 1200,
+          "label": "Start(now) writes one field: StartedAtUtc. That is a transition, so it schedules a save." },
+        { "id": "tick",   "time": 2400, "pause": true,
+          "question": "One second passes and the display changes. How many fields of the stored row change with it?",
+          "label": "None. The row is identical to the second before; only `now` moved, and `now` is not stored." },
+        { "id": "tick2",  "time": 3400,
+          "label": "Another second, and another. The view-model repaints once a second and asks for no write, because there is nothing to write." },
+        { "id": "pause",  "time": 4600,
+          "label": "Pause(now) banks the stretch that has been running into Accumulated and clears StartedAtUtc. Two fields, one write." },
+        { "id": "resume", "time": 5800,
+          "label": "Three minutes later, Start(now) again. Accumulated keeps the minute already spent; the paused stretch cost nothing." },
+        { "id": "nearly", "time": 7000,
+          "label": "Running on. Elapsed is Accumulated plus this stretch — one minute plus three fifty-nine." },
+        { "id": "done",   "time": 8400,
+          "label": "0:00, and red. Finished is not a stored state: it is remaining ≤ 0, asked whenever anyone looks. The ticker stops, because the number cannot change again." }
+      ]
+    },
+    "tracks": [
+      { "id": "h1", "target": "f3-h1", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.22 }, { "time": 1100, "value": 0.22 }, { "time": 1200, "value": 0 } ] },
+      { "id": "h2", "target": "f3-h2", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 1100, "value": 0 }, { "time": 1200, "value": 0.22 },
+                       { "time": 4500, "value": 0.22 }, { "time": 4600, "value": 0 } ] },
+      { "id": "h3", "target": "f3-h3", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4500, "value": 0 }, { "time": 4600, "value": 0.22 },
+                       { "time": 5700, "value": 0.22 }, { "time": 5800, "value": 0 } ] },
+      { "id": "h4", "target": "f3-h4", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 5700, "value": 0 }, { "time": 5800, "value": 0.22 },
+                       { "time": 8300, "value": 0.22 }, { "time": 8400, "value": 0 } ] },
+      { "id": "h5", "target": "f3-h5", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 8300, "value": 0 }, { "time": 8400, "value": 0.22 } ] },
+
+      { "id": "started", "target": "f3-started", "property": "text",
+        "keyframes": [ { "time": 0, "value": "null" }, { "time": 1200, "value": "12:00:00" },
+                       { "time": 4600, "value": "null" }, { "time": 5800, "value": "12:04:00" } ] },
+      { "id": "accum", "target": "f3-accum", "property": "text",
+        "keyframes": [ { "time": 0, "value": "00:00:00" }, { "time": 4600, "value": "00:01:00" } ] },
+      { "id": "hr-started", "target": "f3-hr-started", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 1200, "value": 0.25 }, { "time": 1900, "value": 0 },
+                       { "time": 4600, "value": 0.25 }, { "time": 5300, "value": 0 },
+                       { "time": 5800, "value": 0.25 }, { "time": 6500, "value": 0 } ] },
+      { "id": "hr-accum", "target": "f3-hr-accum", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4600, "value": 0.25 }, { "time": 5300, "value": 0 } ] },
+
+      { "id": "display", "target": "f3-display", "property": "text",
+        "keyframes": [ { "time": 0, "value": "5:00" }, { "time": 2400, "value": "4:59" },
+                       { "time": 3400, "value": "4:58" }, { "time": 4600, "value": "4:00" },
+                       { "time": 5800, "value": "4:00" }, { "time": 7000, "value": "0:01" },
+                       { "time": 8400, "value": "0:00" } ] },
+      { "id": "display-colour", "target": "f3-display", "property": "fill",
+        "keyframes": [ { "time": 0, "value": "#22c55e" }, { "time": 8300, "value": "#22c55e" }, { "time": 8400, "value": "#ef4444" } ] },
+      { "id": "now", "target": "f3-now", "property": "text",
+        "keyframes": [ { "time": 0, "value": "now  12:00:00" }, { "time": 2400, "value": "now  12:00:01" },
+                       { "time": 3400, "value": "now  12:00:02" }, { "time": 4600, "value": "now  12:01:00" },
+                       { "time": 5800, "value": "now  12:04:00" }, { "time": 7000, "value": "now  12:07:59" },
+                       { "time": 8400, "value": "now  12:08:00" } ] },
+      { "id": "writes", "target": "f3-writes", "property": "text",
+        "keyframes": [ { "time": 0, "value": "writes to disk: 0" }, { "time": 1200, "value": "writes to disk: 1" },
+                       { "time": 4600, "value": "writes to disk: 2" }, { "time": 5800, "value": "writes to disk: 3" } ] },
+      { "id": "verdict", "target": "f3-verdict", "property": "text",
+        "keyframes": [
+          { "time": 0, "value": "A five-minute countdown that has not been started." },
+          { "time": 1200, "value": "Start(now) → one field changed → AutoSaveService.Schedule(note). Transitions write." },
+          { "time": 2400, "value": "A second passed. The row is byte-for-byte what it was, so there is nothing to write." },
+          { "time": 3400, "value": "Ticking is a repaint, not a change. This is why a sweeping autosave would have been wrong." },
+          { "time": 4600, "value": "Pause(now) → Accumulated and StartedAtUtc changed → one write." },
+          { "time": 5800, "value": "Start(now) → StartedAtUtc changed → one write. Three writes for the whole session." },
+          { "time": 7000, "value": "Still three. Nothing between the transitions has asked for a write." },
+          { "time": 8400, "value": "Three writes, eight minutes, and not one of them caused by a tick." } ] }
+    ]
+  }
+  </script>
+
+  <figcaption>
+    Eight minutes of a countdown. The write counter moves three times in all —
+    once for each call to <code>Start</code> or <code>Pause</code> — and never in
+    between.
+  </figcaption>
+
+  <details class="steps">
+    <summary>The same eight steps, as text</summary>
+    <ol>
+      <li><b>Set.</b> A five-minute countdown, not started. <code>StartedAtUtc</code> is null, nothing banked.</li>
+      <li><b>Start(now).</b> Writes one field, <code>StartedAtUtc</code>. A transition, so it schedules a save.</li>
+      <li><b>A second passes.</b> No stored field changes — only <code>now</code> moved, and <code>now</code> is not stored.</li>
+      <li><b>Another second.</b> The view-model repaints and asks for no write.</li>
+      <li><b>Pause(now).</b> Banks the running stretch into <code>Accumulated</code>, clears <code>StartedAtUtc</code>. One write.</li>
+      <li><b>Start(now)</b> three minutes later. <code>Accumulated</code> keeps the minute already spent; the pause itself cost nothing.</li>
+      <li><b>Running on.</b> Elapsed is <code>Accumulated</code> plus the current stretch.</li>
+      <li><b>0:00, red.</b> Finished is not a stored state — it is <code>remaining &lt;= 0</code>, asked whenever anyone looks.</li>
+    </ol>
+  </details>
+</figure>
+
+<p>
+  Three things fall out of that design, and each one is a problem the app then does
+  not have.
+</p>
+
+<p>
+  <strong>Ticking never causes a write.</strong> Not because a rule says so, but
+  because there is nothing to write: no persisted field differs between one second
+  and the next. A design that stored "seconds remaining" would have handed
+  <code>AutoSaveService</code> a note that is dirty every second forever, and the
+  fix at that point is a special case threaded through the save path.
+</p>
+
+<p>
+  <strong>It is testable without sleeping.</strong> <code>FakeTimeProvider</code>
+  advances two hours in a microsecond, so every timing test is exact and none of
+  them is flaky on a loaded machine. This is the same <code>TimeProvider</code>
+  already threaded through <code>Note.Create</code> and <code>NoteService</code>,
+  so it cost nothing new.
+</p>
+
+<p>
+  <strong>And it survives a restart for free</strong> — which is the next figure.
+</p>
+
+<h3>Why a countdown survives an app restart with no catch-up</h3>
+
+<p>
+  Close the laptop mid-break, reopen it, and the countdown is wherever the wall
+  clock says it should be. There is no drift to correct and no catch-up pass on
+  startup, because nothing was ever counting — the answer was always derived. The
+  figure below runs the same two minutes away from the machine against the design
+  YappyNotes chose and the one it rejected.
+</p>
+
+<figure data-tinyfly-embed data-fullscreen="true"
+        data-scenario-legend="What the row stores"
+        data-options='{"stepMode": true}'
+        data-alt="The same two minutes away from the machine, once with a stored start time and once with a stored seconds-remaining, showing which one comes back correct">
+  <div class="dg-scroll">
+    <svg viewBox="0 0 764 290" role="img"
+       aria-label="The same two minutes away from the machine, once with a stored start time and once with a stored seconds remaining">
+
+    <rect class="dg-panel" x="20" y="30" width="370" height="196" rx="8"/>
+    <text class="dg-label" x="36" y="54">the stored row</text>
+
+    <g>
+      <text class="dg-mono-d" x="36" y="84">Duration</text>
+      <text class="dg-mono"   x="200" y="84">00:05:00</text>
+    </g>
+    <g data-tinyfly="f4-row-started" opacity="1">
+      <text class="dg-mono-d" x="36" y="112">StartedAtUtc</text>
+      <text data-tinyfly="f4-started" class="dg-mono" x="200" y="112">12:00:00</text>
+    </g>
+    <g data-tinyfly="f4-row-accum" opacity="1">
+      <text class="dg-mono-d" x="36" y="140">Accumulated</text>
+      <text data-tinyfly="f4-accum" class="dg-mono" x="200" y="140">00:00:00</text>
+    </g>
+    <g data-tinyfly="f4-row-remaining" opacity="1">
+      <text class="dg-mono-d" x="36" y="168">Remaining</text>
+      <text data-tinyfly="f4-remaining" class="dg-mono" x="200" y="168">not stored</text>
+    </g>
+    <text data-tinyfly="f4-writes" class="dg-mono" x="36" y="202">writes to disk: 1</text>
+
+    <text class="dg-label" x="414" y="54">on screen</text>
+    <text data-tinyfly="f4-state" class="dg-sub" x="414" y="78">running</text>
+    <text data-tinyfly="f4-display" x="577" y="140" text-anchor="middle"
+          style="font:600 40px ui-monospace,Menlo,Consolas,monospace;fill:#22c55e">5:00</text>
+    <text data-tinyfly="f4-now" class="dg-mono-d" x="414" y="172">now  12:00:00</text>
+    <text data-tinyfly="f4-truth" class="dg-sub" x="414" y="196">the true remaining time is 5:00</text>
+
+    <text data-tinyfly="f4-verdict" class="dg-sub" x="20" y="240">A five-minute countdown, just started.</text>
+    <text data-tinyfly="f4-verdict2" class="dg-sub" x="20" y="262"> </text>
+  </svg>
+    </div>
+
+  <script type="application/json" data-tinyfly-timeline
+          data-scenario="derived" data-scenario-label="When it started, and what was banked (YappyNotes)">
+  {
+    "formatVersion": 1,
+    "id": "derived",
+    "config": {
+      "duration": 5600,
+      "markers": [
+        { "id": "start",   "time": 0,
+          "label": "12:00:00. Start(now) has written StartedAtUtc, and that is the only write this session will make." },
+        { "id": "running", "time": 1100,
+          "label": "12:00:30. Thirty seconds gone. The row has not been touched; the display is recomputed each second from it and from now." },
+        { "id": "quit",    "time": 2300,
+          "label": "12:01:00 — the app is closed with four minutes still on the clock. Nothing special happens: there was nothing counting to shut down." },
+        { "id": "away",    "time": 3400,
+          "label": "Two minutes pass with the app not running." },
+        { "id": "reopen",  "time": 4500, "pause": true,
+          "question": "The app opens again at 12:03:00. What does the countdown have to do to catch up?",
+          "label": "Nothing. It reads the same row it wrote at 12:00:00, subtracts, and draws 2:00. There is no catch-up pass because nothing fell behind." },
+        { "id": "verdict", "time": 5600,
+          "label": "One write for the whole session, and the number is right the instant the window appears." }
+      ]
+    },
+    "tracks": [
+      { "id": "r-started", "target": "f4-row-started", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 1 } ] },
+      { "id": "r-accum", "target": "f4-row-accum", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 1 } ] },
+      { "id": "r-remaining", "target": "f4-row-remaining", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.35 } ] },
+      { "id": "started", "target": "f4-started", "property": "text",
+        "keyframes": [ { "time": 0, "value": "12:00:00" } ] },
+      { "id": "accum", "target": "f4-accum", "property": "text",
+        "keyframes": [ { "time": 0, "value": "00:00:00" } ] },
+      { "id": "remaining", "target": "f4-remaining", "property": "text",
+        "keyframes": [ { "time": 0, "value": "not stored — computed" } ] },
+      { "id": "writes", "target": "f4-writes", "property": "text",
+        "keyframes": [ { "time": 0, "value": "writes to disk: 1" } ] },
+      { "id": "state", "target": "f4-state", "property": "text",
+        "keyframes": [ { "time": 0, "value": "running" }, { "time": 2300, "value": "the app is closed" },
+                       { "time": 4500, "value": "running again" } ] },
+      { "id": "display", "target": "f4-display", "property": "text",
+        "keyframes": [ { "time": 0, "value": "5:00" }, { "time": 1100, "value": "4:30" },
+                       { "time": 2300, "value": "—" }, { "time": 4500, "value": "2:00" } ] },
+      { "id": "display-colour", "target": "f4-display", "property": "fill",
+        "keyframes": [ { "time": 0, "value": "#22c55e" }, { "time": 2300, "value": "#94a3b8" },
+                       { "time": 4500, "value": "#22c55e" } ] },
+      { "id": "now", "target": "f4-now", "property": "text",
+        "keyframes": [ { "time": 0, "value": "now  12:00:00" }, { "time": 1100, "value": "now  12:00:30" },
+                       { "time": 2300, "value": "now  12:01:00" }, { "time": 3400, "value": "now  12:02:00" },
+                       { "time": 4500, "value": "now  12:03:00" } ] },
+      { "id": "truth", "target": "f4-truth", "property": "text",
+        "keyframes": [ { "time": 0, "value": "the true remaining time is 5:00" },
+                       { "time": 1100, "value": "the true remaining time is 4:30" },
+                       { "time": 2300, "value": "the true remaining time is 4:00" },
+                       { "time": 3400, "value": "the true remaining time is 3:00" },
+                       { "time": 4500, "value": "the true remaining time is 2:00" } ] },
+      { "id": "verdict", "target": "f4-verdict", "property": "text",
+        "keyframes": [
+          { "time": 0, "value": "Start(now) wrote StartedAtUtc. Nothing else will be written this session." },
+          { "time": 1100, "value": "remaining = Duration − (Accumulated + (now − StartedAtUtc)) = 5:00 − 0:30" },
+          { "time": 2300, "value": "Closed mid-countdown. No timer was running in the app, so none had to be stopped." },
+          { "time": 3400, "value": "Two minutes of wall clock, and nothing of YappyNotes is running at all." },
+          { "time": 4500, "value": "Reopened: read the row, subtract, draw. 5:00 − (0:00 + 3:00) = 2:00." },
+          { "time": 5600, "value": "One write. No drift, no catch-up, no reconciliation on startup." } ] },
+      { "id": "verdict2", "target": "f4-verdict2", "property": "text",
+        "keyframes": [ { "time": 0, "value": " " },
+                       { "time": 4500, "value": "The wall clock did the counting, and the wall clock was there the whole time." } ] }
+    ]
+  }
+  </script>
+
+  <script type="application/json" data-tinyfly-timeline
+          data-scenario="stored" data-scenario-label="Seconds remaining (the design that was rejected)">
+  {
+    "formatVersion": 1,
+    "id": "stored",
+    "config": {
+      "duration": 5600,
+      "markers": [
+        { "id": "start",   "time": 0,
+          "label": "12:00:00. The same countdown, except that what is persisted is the number on the screen." },
+        { "id": "running", "time": 1100,
+          "label": "12:00:30. The stored field has changed thirty times, so the note has been dirty thirty times, and the autosave has been asked to write thirty times." },
+        { "id": "quit",    "time": 2300,
+          "label": "12:01:00 — closed. Whatever the last write managed to record is what the file now says: 4:00." },
+        { "id": "away",    "time": 3400,
+          "label": "Two minutes pass. The file still says 4:00, because a file cannot count." },
+        { "id": "reopen",  "time": 4500, "pause": true,
+          "question": "The app opens again at 12:03:00. What does this countdown have to do to catch up?",
+          "label": "It cannot. It reads 4:00, which is two minutes stale, and there is no stored field left to work out the truth from — the moment it started was never kept." },
+        { "id": "verdict", "time": 5600,
+          "label": "Sixty writes, a wrong answer, and a startup pass to write that would still have nothing to go on." }
+      ]
+    },
+    "tracks": [
+      { "id": "r-started", "target": "f4-row-started", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.35 } ] },
+      { "id": "r-accum", "target": "f4-row-accum", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.35 } ] },
+      { "id": "r-remaining", "target": "f4-row-remaining", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 1 } ] },
+      { "id": "started", "target": "f4-started", "property": "text",
+        "keyframes": [ { "time": 0, "value": "not stored" } ] },
+      { "id": "accum", "target": "f4-accum", "property": "text",
+        "keyframes": [ { "time": 0, "value": "not stored" } ] },
+      { "id": "remaining", "target": "f4-remaining", "property": "text",
+        "keyframes": [ { "time": 0, "value": "00:05:00" }, { "time": 1100, "value": "00:04:30" },
+                       { "time": 2300, "value": "00:04:00" }, { "time": 3400, "value": "00:04:00" },
+                       { "time": 4500, "value": "00:04:00" } ] },
+      { "id": "writes", "target": "f4-writes", "property": "text",
+        "keyframes": [ { "time": 0, "value": "writes to disk: 1" }, { "time": 1100, "value": "writes to disk: 31" },
+                       { "time": 2300, "value": "writes to disk: 61" } ] },
+      { "id": "state", "target": "f4-state", "property": "text",
+        "keyframes": [ { "time": 0, "value": "running" }, { "time": 2300, "value": "the app is closed" },
+                       { "time": 4500, "value": "running again — and wrong" } ] },
+      { "id": "display", "target": "f4-display", "property": "text",
+        "keyframes": [ { "time": 0, "value": "5:00" }, { "time": 1100, "value": "4:30" },
+                       { "time": 2300, "value": "—" }, { "time": 4500, "value": "4:00" } ] },
+      { "id": "display-colour", "target": "f4-display", "property": "fill",
+        "keyframes": [ { "time": 0, "value": "#22c55e" }, { "time": 2300, "value": "#94a3b8" },
+                       { "time": 4500, "value": "#ef4444" } ] },
+      { "id": "now", "target": "f4-now", "property": "text",
+        "keyframes": [ { "time": 0, "value": "now  12:00:00" }, { "time": 1100, "value": "now  12:00:30" },
+                       { "time": 2300, "value": "now  12:01:00" }, { "time": 3400, "value": "now  12:02:00" },
+                       { "time": 4500, "value": "now  12:03:00" } ] },
+      { "id": "truth", "target": "f4-truth", "property": "text",
+        "keyframes": [ { "time": 0, "value": "the true remaining time is 5:00" },
+                       { "time": 1100, "value": "the true remaining time is 4:30" },
+                       { "time": 2300, "value": "the true remaining time is 4:00" },
+                       { "time": 3400, "value": "the true remaining time is 3:00" },
+                       { "time": 4500, "value": "the true remaining time is 2:00" } ] },
+      { "id": "verdict", "target": "f4-verdict", "property": "text",
+        "keyframes": [
+          { "time": 0, "value": "The number on screen is also the number in the file, which means every second is a change." },
+          { "time": 1100, "value": "Thirty ticks, thirty dirty notes, thirty trips through AutoSaveService." },
+          { "time": 2300, "value": "Closed. The file holds the last value that happened to get written." },
+          { "time": 3400, "value": "The wall clock keeps moving. The file does not." },
+          { "time": 4500, "value": "Reopened: the file says 4:00 and the world says 2:00." },
+          { "time": 5600, "value": "Sixty writes and a two-minute error, and no field left to correct it from." } ] },
+      { "id": "verdict2", "target": "f4-verdict2", "property": "text",
+        "keyframes": [ { "time": 0, "value": " " },
+                       { "time": 4500, "value": "To fix this you would store the moment it started — which is the other scenario." } ] }
+    ]
+  }
+  </script>
+
+  <figcaption>
+    Both scenarios run the same clock over the same markup. Switch between them to
+    compare the same moment; the step ids match, so you keep your place.
+  </figcaption>
+
+  <details class="steps">
+    <summary>The same steps, as text</summary>
+    <p><b>When it started, and what was banked.</b> One write at 12:00:00. The app is closed at 12:01:00 and opened at 12:03:00; the countdown reads the row it wrote three minutes earlier, subtracts, and draws 2:00. No catch-up, because nothing fell behind.</p>
+    <p><b>Seconds remaining.</b> The stored field changes every second, so the note is dirty every second. At 12:01:00 the file holds 4:00. At 12:03:00 it still holds 4:00, and there is nothing else stored from which the real answer could be worked out.</p>
+  </details>
+</figure>
+
+<div class="callout">
+  <strong>The property that cannot be tested by counting writes</strong>
+  <p>
+    "Ticking writes nothing" looks like it should be a test that runs a timer for
+    an hour and asserts zero writes. It is not, and the first version of that test
+    passed against the bug it was written for: a one-second tick keeps resetting a
+    750&nbsp;ms debounce, so a ticker that <em>did</em> ask for a save would still
+    never produce one.
+    <code>NoteTimerViewModelTests.Ticking_ForAnHour_NeverAsksForAWrite</code> asserts
+    against the transition callback instead — the thing the view-model calls to
+    schedule a save — rather than against the disk.
+  </p>
+</div>
+
+<p>
+  The display has to tick even though nothing changes, and that is where the timer
+  touches the layer rules. <code>NoteTimerViewModel</code> drives it with
+  <code>TimeProvider.CreateTimer</code>, which is BCL and therefore allowed in
+  <code>YappyNotes.ViewModels</code> — a <code>DispatcherTimer</code> would have
+  been an Avalonia type and would have failed <code>ArchitectureTests</code>. Its
+  callback arrives on a thread-pool thread, and an Avalonia binding must be
+  updated on the UI thread, so the hop back goes through <code>IUiDispatcher</code>,
+  a seam declared in ViewModels and implemented in App. Autosave completing
+  off-thread needed the same seam first; the timer was its second caller.
+</p>
+
+<p>
+  The ticker also only runs while the timer does, and stops again the moment a
+  countdown finishes: the display reads 0:00 and cannot change, so waking up once
+  a second to redraw it is work nobody asked for.
+</p>
+
+<p>
+  Two smaller decisions are worth knowing because both came from using the thing.
+  <strong>A finished countdown reads 0:00 and turns red rather than counting past
+  zero</strong> — it showed the overrun as "-2:05" at first, which reads as a
+  fault. <code>RemainingAt</code> still goes negative, because
+  <code>HasFinishedAt</code> needs the sign; the clamp lives in
+  <code>DisplayAt</code> alone, and the colour is what distinguishes a finished
+  timer from one that has not started. And <strong>the timer's settings are locked
+  while it is running</strong> — <code>CanEdit</code> is <code>!IsRunning</code>,
+  and it disables the <code>…</code> button that opens them. Moving the finish
+  line halfway through a countdown is a way to be confused. The settings live in
+  a flyout rather than on the bar because a note is 280&nbsp;px wide by default
+  and a label, a direction, presets, minutes and seconds do not fit beside a
+  count; they were clipped to unreadable stumps when they tried. Setting a
+  length also clears what has already run — "10 minutes" means a ten-minute
+  break, not ten minutes minus what you used.
+</p>
+
+<div class="callout">
+  <strong>The trap the timer introduced</strong>
+  <p>
+    <code>Note.Timer</code> is the first reference-typed member on
+    <code>Note</code>, and <code>Note.Copy()</code> is what makes a repository
+    round-trip by value. Copy was trivially correct while every field was a scalar;
+    the moment a reference landed it had to deep-copy, or two notes would share one
+    timer and pausing a countdown in a window would pause it in the database too.
+    <code>NoteTimer.Copy()</code> is that deep copy. The two contract tests that
+    guard round-tripping by value would have kept passing while it was broken,
+    which is why the contract got a timer case in the same commit as the field.
+  </p>
+</div>
+
+<h2>One contract, answered twice</h2>
+
+<p>
+  <code>INoteRepository</code> exists in Core not because a second store is
+  expected to ship, but because the in-memory fake is what makes the service and
+  view-model tests run in milliseconds with no file on disk. That is the seam
+  earning its keep on day one. The risk it brings is the usual one: a fake that
+  behaves differently from the real store is worse than no fake at all, because it
+  makes tests pass for reasons that will not hold in the app.
+</p>
+
+<figure data-tinyfly-embed data-fullscreen="true"
+        data-options='{"stepMode": true}'
+        data-alt="The INoteRepository contract, derived once for the in-memory fake and once for SQLite, so the two cannot drift">
+  <div class="dg-scroll">
+    <svg viewBox="0 0 764 330" role="img"
+       aria-label="The INoteRepository contract, derived once for the in-memory fake and once for SQLite">
+
+    <g>
+      <rect class="dg-box" x="272" y="16" width="220" height="70" rx="8"/>
+      <rect data-tinyfly="f5-hl-iface" class="dg-hl" x="272" y="16" width="220" height="70" rx="8" fill="#3b82f6" opacity="0"/>
+      <text class="dg-mono" x="382" y="40" text-anchor="middle">INoteRepository</text>
+      <text class="dg-sub"  x="382" y="58" text-anchor="middle">YappyNotes.Core — six async methods</text>
+      <text data-tinyfly="f5-new" class="dg-mono-d" x="382" y="78" text-anchor="middle" opacity="1">+ CountAsync()</text>
+    </g>
+
+    <path class="dg-arrow" d="M382 86 V 100"/><polygon class="dg-arrow-head" points="376,100 388,100 382,110"/>
+
+    <g>
+      <rect class="dg-panel" x="232" y="110" width="300" height="84" rx="8"/>
+      <rect data-tinyfly="f5-hl-contract" class="dg-hl" x="232" y="110" width="300" height="84" rx="8" fill="#f59e0b" opacity="0"/>
+      <text class="dg-mono"  x="382" y="134" text-anchor="middle">NoteRepositoryContract</text>
+      <text class="dg-sub"   x="382" y="152" text-anchor="middle">tests/YappyNotes.TestKit</text>
+      <text data-tinyfly="f5-facts" class="dg-label" x="382" y="176" text-anchor="middle">27 [Fact] methods, one per rule</text>
+    </g>
+
+    <g data-tinyfly="f5-arm-left" opacity="1">
+      <path class="dg-arrow" d="M292 194 V 218 H 150 V 240"/>
+      <polygon class="dg-arrow-head" points="144,240 156,240 150,250"/>
+      <text class="dg-sub" x="150" y="212" text-anchor="middle">InMemoryNoteRepositoryTests</text>
+    </g>
+    <g data-tinyfly="f5-arm-right" opacity="1">
+      <path class="dg-arrow" d="M472 194 V 218 H 614 V 240"/>
+      <polygon class="dg-arrow-head" points="608,240 620,240 614,250"/>
+      <text class="dg-sub" x="614" y="212" text-anchor="middle">SqliteNoteRepositoryTests</text>
+    </g>
+
+    <g>
+      <rect class="dg-box" x="30" y="250" width="240" height="62" rx="8"/>
+      <rect data-tinyfly="f5-hl-left" class="dg-hl" x="30" y="250" width="240" height="62" rx="8" fill="#22c55e" opacity="0"/>
+      <text class="dg-mono" x="150" y="276" text-anchor="middle">InMemoryNoteRepository</text>
+      <text class="dg-sub"  x="150" y="294" text-anchor="middle">the fake every layer above Data uses</text>
+    </g>
+    <g>
+      <rect class="dg-box" x="494" y="250" width="240" height="62" rx="8"/>
+      <rect data-tinyfly="f5-hl-right" class="dg-hl" x="494" y="250" width="240" height="62" rx="8" fill="#22c55e" opacity="0"/>
+      <text class="dg-mono" x="614" y="276" text-anchor="middle">SqliteNoteRepository</text>
+      <text class="dg-sub"  x="614" y="294" text-anchor="middle">the one that ships</text>
+    </g>
+  </svg>
+    </div>
+
+  <script type="application/json" data-tinyfly-timeline>
+  {
+    "formatVersion": 1,
+    "id": "contract-twice",
+    "config": {
+      "duration": 5600,
+      "markers": [
+        { "id": "iface",    "time": 0,
+          "label": "INoteRepository is declared in Core: six async methods, and no opinion about what a reader should see." },
+        { "id": "contract", "time": 1200,
+          "label": "NoteRepositoryContract holds every rule an implementation must follow — twenty-seven of them, including that a note round-trips by value." },
+        { "id": "fake",     "time": 2400,
+          "label": "Derived once for the in-memory fake, which is real code with real behaviour: it enforces the same unique-id rule the SQL does. Not a mock recording calls." },
+        { "id": "sqlite",   "time": 3600, "pause": true,
+          "question": "A new method is needed on the repository. Where does it go first?",
+          "label": "Derived again for SQLite, against a real file in a temp directory — not :memory:, because locking and journal mode only behave like the shipped app with a file." },
+        { "id": "added",    "time": 5600,
+          "label": "Into the contract. The rule is written once, both implementations have to answer it, and the fake cannot drift away from the store it stands in for." }
+      ]
+    },
+    "tracks": [
+      { "id": "hl-iface", "target": "f5-hl-iface", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0.2 }, { "time": 900, "value": 0.2 }, { "time": 1200, "value": 0 },
+                       { "time": 4600, "value": 0 }, { "time": 4900, "value": 0.2 } ] },
+      { "id": "new", "target": "f5-new", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 4600, "value": 0 }, { "time": 4900, "value": 1 } ] },
+      { "id": "hl-contract", "target": "f5-hl-contract", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 1200, "value": 0.22 }, { "time": 2400, "value": 0.1 },
+                       { "time": 4900, "value": 0.1 }, { "time": 5200, "value": 0.28 } ] },
+      { "id": "arm-left", "target": "f5-arm-left", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 1900, "value": 0 }, { "time": 2400, "value": 1 } ] },
+      { "id": "hl-left", "target": "f5-hl-left", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 2200, "value": 0 }, { "time": 2400, "value": 0.22 },
+                       { "time": 3000, "value": 0.1 }, { "time": 5200, "value": 0.1 }, { "time": 5600, "value": 0.28 } ] },
+      { "id": "arm-right", "target": "f5-arm-right", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 3100, "value": 0 }, { "time": 3600, "value": 1 } ] },
+      { "id": "hl-right", "target": "f5-hl-right", "property": "opacity",
+        "keyframes": [ { "time": 0, "value": 0 }, { "time": 3400, "value": 0 }, { "time": 3600, "value": 0.22 },
+                       { "time": 4200, "value": 0.1 }, { "time": 5200, "value": 0.1 }, { "time": 5600, "value": 0.28 } ] },
+      { "id": "facts", "target": "f5-facts", "property": "text",
+        "keyframes": [ { "time": 0, "value": "27 [Fact] methods, one per rule" },
+                       { "time": 5200, "value": "28 — and both of them must answer it" } ] }
+    ]
+  }
+  </script>
+
+  <figcaption>
+    <code>SettingsRepositoryContract</code> does the same job for
+    <code>ISettingsRepository</code>, with five rules and the same two
+    derivations.
+  </figcaption>
+
+  <details class="steps">
+    <summary>The same five steps, as text</summary>
+    <ol>
+      <li><b><code>INoteRepository</code></b> is declared in Core: six async methods, no opinion about what a reader should see.</li>
+      <li><b><code>NoteRepositoryContract</code></b> holds every rule an implementation must follow — 27 of them, including that a note round-trips by value.</li>
+      <li><b>Derived for the fake.</b> <code>InMemoryNoteRepository</code> is real code with real behaviour, enforcing the same unique-id rule the SQL does.</li>
+      <li><b>Derived for SQLite</b>, against a real file in a temp directory — not <code>:memory:</code>.</li>
+      <li><b>A new method goes into the contract first</b>, and both implementations have to answer it.</li>
+    </ol>
+  </details>
+</figure>
+
+<p>
+  Two of the contract's cases exist only to keep the fake honest: the store
+  round-trips by value, so mutating a note you inserted — or one you were handed
+  back — must change nothing. SQLite gets that for free because it serialises;
+  an in-memory dictionary does not, and would otherwise hand out live references
+  that let a test mutate the store by accident. That is also the reason
+  <code>Note.Copy()</code> exists, and the reason the timer's arrival made it
+  dangerous.
+</p>
+
+<p>
+  The service above draws the line the other way. A repository stores what it is
+  given and never filters archived notes out; <code>NoteService</code> is where
+  "which notes should a reader see" and "delete means archive" live, and nothing
+  above it holds an <code>INoteRepository</code> of its own.
+  <code>PurgeAsync</code> refuses a note that is not archived, which is the second
+  half of that rule: the only path to a real delete goes through the archive, so
+  no single action destroys a note a reader can still see on their desktop.
+</p>
+
+<h2>Reading the source</h2>
+
+<p>
+  In the order that makes the rest legible:
+</p>
+
+<ul>
+  <li><code>src/YappyNotes.Core/Note.cs</code> and <code>NoteTimer.cs</code> — the
+      whole domain, and the two files where the reasoning above is written down as
+      XML doc comments.</li>
+  <li><code>src/YappyNotes.Core/INoteRepository.cs</code>, then
+      <code>tests/YappyNotes.TestKit/NoteRepositoryContract.cs</code> — the
+      interface and its definition.</li>
+  <li><code>src/YappyNotes.Core/NoteService.cs</code> and
+      <code>AutoSaveService.cs</code> — the policy.</li>
+  <li><code>src/YappyNotes.Data/Migrator.cs</code> — the schema, as the two SQL
+      steps that made it.</li>
+  <li><code>src/YappyNotes.ViewModels/NoteViewModel.cs</code> and
+      <code>NoteTimerViewModel.cs</code> — everything the window binds to.</li>
+  <li><code>src/YappyNotes.App/AppServices.cs</code> — the composition root, and
+      the only C# file in <code>YappyNotes.App</code> that names
+      <code>YappyNotes.Data</code> at all — the project reference itself lives in
+      the <code>.csproj</code>, as it must.</li>
+</ul>
+
+<p>
+  The project is test-driven, and <a href="../LOOP.md">LOOP.md</a> is the rule set
+  rather than an aspiration: no production code without a failing test that needed
+  it, a bug starts as a test that reproduces it, refactor only on green, and never
+  commit a red suite. Test names are
+  <code>Subject_Situation_ExpectedOutcome</code>, three parts always; an "and" in
+  the middle part means it is two tests.
+</p>
+
+<p>
+  The suite is xunit&nbsp;v3 in every test project, and that uniformity is
+  deliberate rather than tidy. <code>Avalonia.Headless.XUnit</code> 12.x is built
+  against <code>xunit.v3.extensibility.core</code>; under a v2 runner its
+  <code>[AvaloniaFact]</code> attribute is not discovered at all, so the project
+  reports no tests <em>and the run still passes</em>. Nothing goes red when that
+  happens, which is exactly why it is worth knowing about.
+</p>
+
+<pre><code>dotnet build yappynotes.sln
+dotnet test  yappynotes.sln
+dotnet format yappynotes.sln
+
+dotnet watch test --project tests/YappyNotes.Core.Tests   # the fast ones
+scripts/dev-start.sh --sandbox                            # a throwaway database</code></pre>
+
+<p>
+  Use <code>--sandbox</code> before touching the schema. Testing a migration
+  against your own week-old notes is how notes get lost.
+</p>
+
+<h2>What is deliberately not here</h2>
+
+<p>
+  Milestone 6 is scoped and not started, and it is two things rather than the
+  nine it used to be: <strong>rich text</strong> and <strong>a tray icon</strong>.
+  The rich-text argument is the one worth reading before anyone starts, because it
+  is a storage decision wearing a rendering costume — Markdown kept in
+  <code>Content</code> means no migration (<code>Content</code> is already
+  <code>TEXT</code>), <code>LIKE</code> search keeps working, export stays nearly
+  free, and the file stays readable in a SQL browser. A rich-text blob would break
+  search and need either FTS or a second stored plain-text column.
+</p>
+
+<p>
+  Everything else is parked with its reason attached, so that none of it is
+  rediscovered as an oversight. <strong>Sync is rejected rather than deferred</strong>:
+  "no account, no sync and no network" is a product goal, and it is what lets the
+  whole application be one file. Images, reminders, tags, stacking and a global
+  hotkey each have their own paragraph in <a href="plan.md">the plan</a>; the
+  hotkey's is the most interesting, because it is genuinely useful and genuinely
+  unreliable — X11, Wayland, Win32 and macOS each register one differently, and
+  Wayland mostly refuses without a desktop portal.
+</p>
+
+<p>
+  Links are a half-exception worth explaining, because the shape of the compromise
+  is instructive. Bare URLs in a note's text are found by <code>LinkScanner</code>
+  in Core and offered <em>beside</em> the note rather than rendered inside it: the
+  body is an editable <code>TextBox</code>, which draws plain text and nothing
+  else, and making it render runs of formatting is a far larger change than links
+  are worth. Labelled links are Markdown, and Markdown is Milestone 6.
+</p>
+
+<p>
+  The part of that feature worth getting right is not the rendering but the
+  launching. <code>TopLevel.Launcher.LaunchUriAsync</code> hands a string to the OS
+  shell; note content is text a reader can paste from anywhere, and a
+  <code>notes.db</code> can be copied between machines. So the scheme is
+  allow-listed — <code>http</code>, <code>https</code>, <code>mailto</code>, and
+  nothing else — and anything unrecognised renders as ordinary text.
+  <code>file:</code> is refused by name because it will open anything on disk, and
+  unknown schemes are refused as a class because custom protocol handlers are
+  registered by whatever else is installed. The check is made twice on purpose:
+  once in <code>LinkScanner</code> when the link is found, and again in
+  <code>AvaloniaLinkLauncher</code>, which is the one line where a string out of a
+  note reaches the shell. That duplication is not something to tidy away.
+</p>
+
+<h2>Where this came from</h2>
+
+<p>
+  <a href="sticky-notes-architecture.md">The first draft</a> was a hand-drawn mind
+  map: four layers, dependencies running one way, an interface in front of storage.
+  That shape was right and this page is still describing it. What the drawing left
+  open — whether view-models got their own project, where window geometry lived,
+  what "delete" meant, what the MMF actually was — is what
+  <a href="plan.md">docs/plan.md</a> decides, with the reasoning attached. Read the
+  plan for the argument; this page is the diagram that argument produced.
+</p>
+
+<p class="meta" style="margin-top:2.5rem;border-top:1px solid var(--line-soft);padding-top:1rem;font:400 .85rem/1.6 ui-sans-serif,system-ui,sans-serif;color:var(--fg-muted)">
+  Diagrams by <a href="https://tinyfly.app">tinyfly</a> — JSON timelines with
+  named markers, played by the one-script teaching embed. Every figure's steps are
+  also written out as text beneath it.
+</p>
+
+</main>
+
+<!--
+  tinyfly, from jsDelivr, pinned to a release tag and locked to its bytes with the
+  Subresource Integrity hash published in that release's cdn/README.md. This is
+  the embed-only bundle (~19 KB gzipped): the player, the step controls and the
+  automatic mounting of every [data-tinyfly-embed] figure. `data-tinyfly-auto` is
+  what does the mounting, so there is no per-figure JavaScript anywhere on this
+  page.
+-->
+<script src="https://cdn.jsdelivr.net/gh/algorisys-oss/tinyfly@v0.70.1/cdn/tinyfly-embed.iife.js"
+        integrity="sha384-kC6yIxNv13FChTn4flIqJKMW25i3CPWitY7AEZv3L43nsX/G9InBCzgdFLK6mRhJ"
+        crossorigin="anonymous"
+        data-tinyfly-auto></script>
+
+<script>
+  // If that request failed, say so once, and open the written-out steps. The
+  // drawings themselves are authored in their finished state, so they are still
+  // correct - they simply no longer move.
+  addEventListener('load', function () {
+    setTimeout(function () {
+      if (window.tinyfly) return;
+      document.documentElement.classList.add('tinyfly-missing');
+      var steps = document.querySelectorAll('details.steps');
+      for (var i = 0; i < steps.length; i++) steps[i].open = true;
+    }, 1500);
+  });
+</script>
+
+</body>
+</html>
