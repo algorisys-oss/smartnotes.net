@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Microsoft.Extensions.Time.Testing;
 using SmartNotes.App.Views;
 using SmartNotes.Core;
@@ -208,5 +209,57 @@ public class NoteTimerWindowTests
         Assert.Equal("0:00", display.Text);
         Assert.True(note.Timer.HasFinished);
         Assert.NotEqual(beforeFinishing, display.Foreground?.ToString());
+    }
+
+    [AvaloniaFact]
+    public void TimerBar_OffersAWayToStopAndRewind()
+    {
+        // Pause banks what has run and restart starts it going, so without this
+        // there is no button that leaves a timer stopped at the top.
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+        note.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(2));
+
+        window.FindControl<Button>("TimerReset")!.Command!.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.False(note.Timer.IsRunning);
+        Assert.Equal("5:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void TimerBar_AfterResetting_OffersTheSettingsAgain()
+    {
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+        note.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(6));
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(window.FindControl<WrapPanel>("TimerEditRow")!.IsVisible);
+
+        window.FindControl<Button>("TimerReset")!.Command!.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(window.FindControl<WrapPanel>("TimerEditRow")!.IsVisible);
+    }
+
+    /// <summary>
+    /// Typing a length rather than using a preset. NumericUpDown commits as you
+    /// type in Avalonia 12, which was checked rather than assumed.
+    /// </summary>
+    [AvaloniaFact]
+    public void TimerMinutes_WhenTypedIntoDirectly_ReachesTheTimer()
+    {
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+        var inner = window.FindControl<NumericUpDown>("TimerMinutes")!
+            .GetVisualDescendants().OfType<TextBox>().First();
+
+        inner.Text = "12";
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(12, note.Timer!.DurationMinutes);
+        Assert.Equal("12:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
     }
 }

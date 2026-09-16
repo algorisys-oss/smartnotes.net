@@ -161,10 +161,26 @@ public sealed partial class NoteTimerViewModel : ObservableObject, IDisposable
     private void StartTicking()
     {
         _ticker ??= _timeProvider.CreateTimer(
-            _ => _ui.Post(Redraw),
+            _ => _ui.Post(Tick),
             state: null,
             TimeSpan.FromSeconds(1),
             TimeSpan.FromSeconds(1));
+    }
+
+    /// <summary>
+    /// One second of running. Stops the ticker once a countdown has finished:
+    /// the display reads 0:00 and cannot change again, so waking up to redraw it
+    /// is work nobody asked for - the same reason a stopped timer does not tick.
+    /// Nothing stored changes here, so this still asks for no write.
+    /// </summary>
+    private void Tick()
+    {
+        Redraw();
+
+        if (_timer.HasFinishedAt(_timeProvider.GetUtcNow()))
+        {
+            StopTicking();
+        }
     }
 
     private void StopTicking()

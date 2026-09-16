@@ -136,7 +136,7 @@
                 Padding="8,6"
                 BorderBrush="#22000000"
                 BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto"
                   RowDefinitions="Auto,Auto"
                   DataContext="{Binding Timer}">
 
@@ -179,11 +179,18 @@
                 <Button Grid.Column="4"
                         x:Name="TimerRestart"
                         Content="&#x21BB;"
-                        ToolTip.Tip="Start again"
+                        ToolTip.Tip="Start again from the top"
                         Command="{Binding RestartCommand}"
                         Padding="6,2" />
 
-                <WrapPanel Grid.Row="1" Grid.ColumnSpan="5"
+                <Button Grid.Column="5"
+                        x:Name="TimerReset"
+                        Content="&#x23F9;"
+                        ToolTip.Tip="Stop and put it back to the top"
+                        Command="{Binding ResetCommand}"
+                        Padding="6,2" />
+
+                <WrapPanel Grid.Row="1" Grid.ColumnSpan="6"
                            x:Name="TimerEditRow"
                            Orientation="Horizontal"
                            Margin="0,4,0,0"
