@@ -7,6 +7,10 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
+| A note | The manager |
+| --- | --- |
+| ![A note with a running break timer and a link](media/note.png) | ![The manager listing three notes](media/manager.png) |
+
 > **Status: Milestone 5 done. Milestone 6 — rich text and a tray icon — is
 > scoped in [docs/plan.md](docs/plan.md) and not started.**
 >
