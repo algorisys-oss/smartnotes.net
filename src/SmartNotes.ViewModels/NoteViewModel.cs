@@ -28,8 +28,25 @@ public sealed partial class NoteViewModel : ObservableObject
     private readonly NoteService _notes;
     private readonly AutoSaveService _autoSave;
     private readonly IWindowManager _windows;
+    private readonly TimeProvider _timeProvider;
+    private readonly IUiDispatcher _ui;
 
-    public NoteViewModel(Note note, NoteService notes, AutoSaveService autoSave, IWindowManager windows)
+    /// <param name="timeProvider">
+    /// Used by the timer, if the note has one. Defaults to the system clock so
+    /// that the many tests which do not care about timers need not supply it.
+    /// </param>
+    /// <param name="ui">
+    /// How a tick gets back to the UI thread. Defaults to running the work where
+    /// it was posted from, which is what a test wants and what a note with no
+    /// timer never exercises.
+    /// </param>
+    public NoteViewModel(
+        Note note,
+        NoteService notes,
+        AutoSaveService autoSave,
+        IWindowManager windows,
+        TimeProvider? timeProvider = null,
+        IUiDispatcher? ui = null)
     {
         ArgumentNullException.ThrowIfNull(note);
         ArgumentNullException.ThrowIfNull(notes);
@@ -40,6 +57,10 @@ public sealed partial class NoteViewModel : ObservableObject
         _notes = notes;
         _autoSave = autoSave;
         _windows = windows;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _ui = ui ?? new ImmediateUiDispatcher();
+
+        AttachTimer();
     }
 
     public Guid Id => _note.Id;
@@ -90,6 +111,59 @@ public sealed partial class NoteViewModel : ObservableObject
     {
         get => _note.Height;
         set => Set(_note.Height, value, v => _note.Height = v);
+    }
+
+    /// <summary>The note's counter, if it has one.</summary>
+    public NoteTimerViewModel? Timer { get; private set; }
+
+    public bool HasTimer => Timer is not null;
+
+    /// <summary>Gives this note a five-minute countdown, ready to start.</summary>
+    [RelayCommand]
+    public void AddTimer()
+    {
+        if (_note.Timer is not null)
+        {
+            return;
+        }
+
+        _note.Timer = new NoteTimer
+        {
+            Direction = TimerDirection.CountDown,
+            Duration = TimeSpan.FromMinutes(5),
+            Label = "Back in",
+        };
+
+        AttachTimer();
+        AnnounceTimer();
+        _autoSave.Schedule(_note);
+    }
+
+    [RelayCommand]
+    public void RemoveTimer()
+    {
+        if (_note.Timer is null)
+        {
+            return;
+        }
+
+        Timer?.Dispose();
+        Timer = null;
+        _note.Timer = null;
+
+        AnnounceTimer();
+        _autoSave.Schedule(_note);
+    }
+
+    private void AttachTimer()
+        => Timer = _note.Timer is null
+            ? null
+            : new NoteTimerViewModel(_note.Timer, _timeProvider, _ui, () => _autoSave.Schedule(_note));
+
+    private void AnnounceTimer()
+    {
+        OnPropertyChanged(nameof(Timer));
+        OnPropertyChanged(nameof(HasTimer));
     }
 
     private static readonly IReadOnlyList<NoteColor> Palette = Enum.GetValues<NoteColor>();
