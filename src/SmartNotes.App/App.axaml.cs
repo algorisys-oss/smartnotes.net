@@ -39,6 +39,8 @@ public partial class App : Application
         _services = await AppServices.StartAsync(UserPaths.Resolve());
         _windows = new WindowManager(_services.Notes, _services.AutoSave);
 
+        ApplyTheme((await _services.Settings.LoadAsync()).Theme);
+
         manager.Bind(new ManagerViewModel(_services.Notes, _windows));
 
         // Restore note windows: every note that was on the desktop comes back
@@ -48,6 +50,17 @@ public partial class App : Application
             await _windows.ShowNoteAsync(note.Id);
         }
     }
+
+    /// <summary>
+    /// The manager window's theme. Note windows are always light paper, which is
+    /// why they set their own colours rather than taking them from here.
+    /// </summary>
+    private void ApplyTheme(AppTheme theme) => RequestedThemeVariant = theme switch
+    {
+        AppTheme.Light => Avalonia.Styling.ThemeVariant.Light,
+        AppTheme.Dark => Avalonia.Styling.ThemeVariant.Dark,
+        _ => Avalonia.Styling.ThemeVariant.Default,
+    };
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {

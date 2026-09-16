@@ -88,6 +88,33 @@ public sealed class AppServicesTests : IDisposable
         Assert.Equal(id, restored[0].Id);
     }
 
+    [Fact]
+    public async Task StartAsync_WiresSettingsOntoTheSameDatabaseAsTheNotes()
+    {
+        await using (var first = await AppServices.StartAsync(Paths, cancellationToken: Token))
+        {
+            await first.Settings.SaveAsync(
+                new AppSettings { DefaultNoteColor = NoteColor.Blue, Theme = AppTheme.Dark }, Token);
+        }
+
+        await using var second = await AppServices.StartAsync(Paths, cancellationToken: Token);
+        var settings = await second.Settings.LoadAsync(Token);
+
+        Assert.Equal(NoteColor.Blue, settings.DefaultNoteColor);
+        Assert.Equal(AppTheme.Dark, settings.Theme);
+    }
+
+    [Fact]
+    public async Task CreateAsync_AfterTheDefaultColourIsChanged_MakesNotesInIt()
+    {
+        await using var services = await AppServices.StartAsync(Paths, cancellationToken: Token);
+        await services.Settings.SaveAsync(new AppSettings { DefaultNoteColor = NoteColor.Pink }, Token);
+
+        var note = await services.Notes.CreateAsync(Token);
+
+        Assert.Equal(NoteColor.Pink, note.Color);
+    }
+
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();

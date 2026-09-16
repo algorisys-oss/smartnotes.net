@@ -8,6 +8,7 @@
         Title="{Binding Title}"
         Width="280" Height="300"
         MinWidth="180" MinHeight="140"
+        RequestedThemeVariant="Light"
         WindowDecorations="None"
         Topmost="{Binding IsAlwaysOnTop}"
         ShowInTaskbar="False"
@@ -18,6 +19,10 @@
          the control alone does nothing, because the template's own border
          element carries the fill and swaps it again on hover and focus. These
          reach into that element for every state. -->
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+P" Command="{Binding TogglePinCommand}" />
+    </Window.KeyBindings>
+
     <Window.Styles>
         <Style Selector="TextBox /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent" />
@@ -94,7 +99,7 @@
             <ToggleButton Grid.Column="1"
                     x:Name="PinButton"
                     IsChecked="{Binding IsAlwaysOnTop}"
-                    ToolTip.Tip="Keep this note on top of other windows"
+                    ToolTip.Tip="Keep this note on top of other windows (Ctrl+P)"
                     Content="&#x25C9;"
                     Foreground="#555"
                     Background="Transparent"
@@ -114,7 +119,7 @@
             <Button Grid.Column="3"
                     x:Name="CloseButton"
                     Click="OnCloseClicked"
-                    ToolTip.Tip="Close the window, keep the note"
+                    ToolTip.Tip="Close the window, keep the note (Ctrl+W or Esc)"
                     Content="&#x2013;"
                     Foreground="#555"
                     Background="Transparent"

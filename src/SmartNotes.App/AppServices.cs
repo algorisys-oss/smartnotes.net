@@ -30,6 +30,8 @@ public sealed class AppServices : IAsyncDisposable
 
     public AutoSaveService AutoSave => _provider.GetRequiredService<AutoSaveService>();
 
+    public SettingsService Settings => _provider.GetRequiredService<SettingsService>();
+
     /// <summary>
     /// Initialise the database, run migrations, create the services. The first
     /// three steps of the bootstrap; loading notes and restoring their windows
@@ -53,6 +55,8 @@ public sealed class AppServices : IAsyncDisposable
         services.AddSingleton(timeProvider ?? TimeProvider.System);
         services.AddSingleton(database);
         services.AddSingleton<INoteRepository, SqliteNoteRepository>();
+        services.AddSingleton<ISettingsRepository, SqliteSettingsRepository>();
+        services.AddSingleton<SettingsService>();
         services.AddSingleton<NoteService>();
         services.AddSingleton<AutoSaveService>();
 

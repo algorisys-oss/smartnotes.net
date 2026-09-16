@@ -8,6 +8,10 @@
         Width="380" Height="560"
         MinWidth="320" MinHeight="360">
 
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+N" Command="{Binding NewNoteCommand}" />
+    </Window.KeyBindings>
+
     <DockPanel>
 
         <!-- Everything you can do that is not about one particular note. -->
@@ -16,6 +20,7 @@
             <Button x:Name="NewNoteButton"
                     Command="{Binding NewNoteCommand}"
                     Content="New note"
+                    ToolTip.Tip="Ctrl+N"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     Padding="12,9" />

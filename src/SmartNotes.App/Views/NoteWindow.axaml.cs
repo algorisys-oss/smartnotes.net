@@ -76,6 +76,27 @@ public partial class NoteWindow : Window
         }
     }
 
+    /// <summary>
+    /// Ctrl+W and Escape close the window and keep the note. Handled here rather
+    /// than as a KeyBinding because closing is the window's business, not the
+    /// view-model's - the view-model has no idea a window exists.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Escape || (e.Key == Key.W && e.KeyModifiers.HasFlag(KeyModifiers.Control)))
+        {
+            e.Handled = true;
+            Close();
+        }
+    }
+
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
