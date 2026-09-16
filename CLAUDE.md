@@ -71,6 +71,9 @@ dotnet run --project src/YappyNotes.App/YappyNotes.App.csproj
 scripts/dev-start.sh              # the same in Debug, so F12 developer tools exist
                                   # --watch to restart on a change
                                   # --sandbox for a throwaway database under artifacts/
+
+# Install a release build for this machine into ~/Desktop/tools/yappynotes
+scripts/deploy-local.sh           # or pass another tools folder
 ```
 
 Use `--sandbox` before touching the schema. Testing a migration against your own
