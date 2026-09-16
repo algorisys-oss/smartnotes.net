@@ -11,6 +11,18 @@ repository over SQLite.
 | --- | --- |
 | ![A note with a running break timer and a link](media/note.png) | ![The manager listing three notes](media/manager.png) |
 
+### How a keystroke becomes one `UPDATE`
+
+![Three keystrokes arriving in a note. Each one restarts the autosave debounce, so nothing is written while typing continues; the quiet after the last one produces exactly one SQLite UPDATE.](media/keystroke.svg)
+
+Nothing is ever saved by pressing a button, and nothing is saved per keystroke
+either. That is the shape of most of this codebase, and there are four more
+figures — the layers and the one arrow that must never exist, a timer session
+where the write counter moves three times in eight minutes, why a countdown
+survives being closed, and the repository contract answered twice — on the
+**[architecture page](https://algorisys-oss.github.io/yappynotes/architecture.html)**,
+where they step rather than loop.
+
 > **Status: Milestone 5 done. Milestone 6 — rich text and a tray icon — is
 > scoped in [docs/plan.md](docs/plan.md) and not started.**
 >

@@ -316,6 +316,23 @@ honour it** when Milestone 1 writes it, or `--sandbox` silently opens the real
 Regenerating the solution needs `dotnet new sln --format sln`: the .NET 10 SDK
 defaults to the newer `.slnx`, and the docs and scripts all say `yappynotes.sln`.
 
+### The architecture page
+
+`docs/architecture.html` is the architecture with animated figures, served from
+GitHub Pages at <https://algorisys-oss.github.io/yappynotes/architecture.html>
+(`main`, `/docs`). It animates through tinyfly, which needs JavaScript — so it
+cannot be embedded in the README, which does not run any.
+
+`media/keystroke.svg` is the README's version: one hand-written SVG animated with
+CSS, which *does* run inside an `<img>` on GitHub. If a figure is worth putting in
+the README, it has to be authored that way rather than exported from the page.
+Both carry `prefers-reduced-motion` and a static end state.
+
+The page repeats claims about the code, so it goes stale like any other doc. When
+something it describes changes, change it too — the layers, the save path, the
+timer's stored fields, and the checkable "only C# file that names Data" line are
+the parts most likely to rot.
+
 ## "Ship it"
 
 When the reader says **ship it** — or **deploy it**, or **publish it** — that one

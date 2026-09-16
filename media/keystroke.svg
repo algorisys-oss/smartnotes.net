@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 250" width="880" height="250"
+     role="img" aria-label="A keystroke travelling from a note window through a debounce that restarts on every keystroke, into a single SQLite UPDATE">
+  <title>How a keystroke becomes one UPDATE in YappyNotes</title>
+  <desc>Three keystrokes arrive in quick succession. Each one restarts the autosave debounce,
+  so nothing is written while typing continues. When the typing stops the debounce completes
+  once, and exactly one UPDATE reaches the database.</desc>
+
+  <style>
+    /* Readable on GitHub in either theme. The SVG is rendered as its own
+       document inside an img, so prefers-color-scheme applies here. */
+    :root { color-scheme: light dark; }
+    .paper  { fill: #fdf6c8; stroke: #c9bd7a; }
+    .box    { fill: #ffffff; stroke: #c9ccd1; }
+    .db     { fill: #efe4ff; stroke: #b79fdd; }
+    .ink    { fill: #1a1a1a; }
+    .quiet  { fill: #1a1a1a; opacity: .55; }
+    .wire   { stroke: #c9ccd1; }
+    .track  { fill: #e6e8ea; }
+    .fill   { fill: #2f7d32; }
+    .flash  { fill: #2f7d32; }
+    .key    { fill: #1a1a1a; }
+
+    @media (prefers-color-scheme: dark) {
+      .paper { fill: #4a441f; stroke: #7d7440; }
+      .box   { fill: #1c2128; stroke: #444c56; }
+      .db    { fill: #2d2440; stroke: #5b4b85; }
+      .ink   { fill: #e6edf3; }
+      .quiet { fill: #e6edf3; opacity: .6; }
+      .wire  { stroke: #444c56; }
+      .track { fill: #30363d; }
+      .fill  { fill: #57ab5a; }
+      .flash { fill: #57ab5a; }
+      .key   { fill: #e6edf3; }
+    }
+
+    text { font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .name { font-size: 13px; font-weight: 600; }
+    .sub  { font-size: 10.5px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+    /* One 7s loop. Every timing below is a share of it. */
+    .k1, .k2, .k3, .bar, .pulse, .wrote, .lit { animation-duration: 7s; animation-iteration-count: infinite; animation-timing-function: linear; }
+
+    .k1 { animation-name: key1; }
+    .k2 { animation-name: key2; }
+    .k3 { animation-name: key3; }
+    @keyframes key1 { 0%,3% { opacity:0; transform: translateX(0); } 4% { opacity:1; } 11% { opacity:1; transform: translateX(118px); } 12%,100% { opacity:0; transform: translateX(118px); } }
+    @keyframes key2 { 0%,13% { opacity:0; transform: translateX(0); } 14% { opacity:1; } 21% { opacity:1; transform: translateX(118px); } 22%,100% { opacity:0; transform: translateX(118px); } }
+    @keyframes key3 { 0%,23% { opacity:0; transform: translateX(0); } 24% { opacity:1; } 31% { opacity:1; transform: translateX(118px); } 32%,100% { opacity:0; transform: translateX(118px); } }
+
+    /* The point of the whole picture: the bar goes back to nothing on every
+       keystroke, and only the quiet after the last one lets it finish. */
+    .bar { animation-name: debounce; transform-box: fill-box; transform-origin: left center; }
+    @keyframes debounce {
+      0%,11%    { transform: scaleX(0); }
+      20.9%     { transform: scaleX(.52); }
+      21%       { transform: scaleX(0); }
+      30.9%     { transform: scaleX(.52); }
+      31%       { transform: scaleX(0); }
+      44%       { transform: scaleX(1); }
+      92%       { transform: scaleX(1); }
+      93%,100%  { transform: scaleX(0); }
+    }
+
+    /* The debounce completing, then one write travelling the rest of the way. */
+    .lit   { animation-name: lit; }
+    @keyframes lit { 0%,43% { opacity:0 } 45% { opacity:1 } 52% { opacity:1 } 54%,100% { opacity:0 } }
+
+    .pulse { animation-name: pulse; }
+    @keyframes pulse {
+      0%,44%   { opacity:0; transform: translateX(0); }
+      46%      { opacity:1; transform: translateX(0); }
+      62%      { opacity:1; transform: translateX(268px); }
+      64%,100% { opacity:0; transform: translateX(268px); }
+    }
+
+    .wrote { animation-name: wrote; }
+    @keyframes wrote { 0%,62% { opacity:0 } 65% { opacity:1 } 92% { opacity:1 } 94%,100% { opacity:0 } }
+
+    /* Anyone who has asked not to be moved gets the finished picture instead. */
+    @media (prefers-reduced-motion: reduce) {
+      .k1,.k2,.k3,.pulse,.lit { animation: none; opacity: 0; }
+      .bar   { animation: none; transform: scaleX(1); transform-box: fill-box; transform-origin: left center; }
+      .wrote { animation: none; opacity: 1; }
+    }
+  </style>
+
+  <!-- the wire everything sits on -->
+  <line class="wire" x1="150" y1="86" x2="742" y2="86" stroke-width="1.5" stroke-dasharray="4 4" />
+
+  <!-- 1. the note window -->
+  <rect class="paper" x="20" y="48" width="130" height="76" rx="6" stroke-width="1.5" />
+  <text class="ink name" x="85" y="80" text-anchor="middle">NoteWindow</text>
+  <text class="quiet sub" x="85" y="98" text-anchor="middle">you, typing</text>
+  <text class="quiet sub" x="85" y="142" text-anchor="middle">App</text>
+
+  <!-- keystrokes leaving it -->
+  <g transform="translate(152, 86)">
+    <circle class="key k1" cx="0" cy="0" r="4" />
+    <circle class="key k2" cx="0" cy="0" r="4" />
+    <circle class="key k3" cx="0" cy="0" r="4" />
+  </g>
+
+  <!-- 2. the view-model -->
+  <rect class="box" x="276" y="48" width="140" height="76" rx="6" stroke-width="1.5" />
+  <text class="ink name" x="346" y="74" text-anchor="middle">NoteViewModel</text>
+  <text class="quiet sub" x="346" y="92" text-anchor="middle">writes straight</text>
+  <text class="quiet sub" x="346" y="106" text-anchor="middle">through to the Note</text>
+  <text class="quiet sub" x="346" y="142" text-anchor="middle">ViewModels</text>
+
+  <!-- 3. the debounce -->
+  <rect class="box" x="440" y="30" width="180" height="112" rx="6" stroke-width="1.5" />
+  <text class="ink name" x="530" y="54" text-anchor="middle">AutoSaveService</text>
+  <text class="quiet sub" x="530" y="71" text-anchor="middle">restarts on every change</text>
+  <rect class="track" x="462" y="84" width="136" height="9" rx="4.5" />
+  <rect class="fill bar" x="462" y="84" width="136" height="9" rx="4.5" />
+  <text class="quiet mono" x="530" y="112" text-anchor="middle">750ms of quiet</text>
+  <circle class="flash lit" cx="606" cy="46" r="5" />
+  <text class="quiet sub" x="530" y="160" text-anchor="middle">Core</text>
+
+  <!-- the single write travelling on -->
+  <g transform="translate(626, 86)">
+    <rect class="fill pulse" x="-9" y="-5" width="18" height="10" rx="3" />
+  </g>
+
+  <!-- 4. the database -->
+  <rect class="db" x="744" y="48" width="118" height="76" rx="6" stroke-width="1.5" />
+  <text class="ink name" x="803" y="80" text-anchor="middle">notes.db</text>
+  <text class="quiet sub" x="803" y="98" text-anchor="middle">SQLite</text>
+  <text class="quiet sub" x="803" y="142" text-anchor="middle">Data</text>
+  <text class="ink mono wrote" x="803" y="120" text-anchor="middle">1 × UPDATE</text>
+
+  <!-- what you just watched -->
+  <text class="quiet sub" x="440" y="210" text-anchor="middle">Three keystrokes. The debounce restarts on each one, so nothing is written while you are still typing —</text>
+  <text class="quiet sub" x="440" y="226" text-anchor="middle">and the quiet after the last one produces exactly one UPDATE.</text>
+</svg>
