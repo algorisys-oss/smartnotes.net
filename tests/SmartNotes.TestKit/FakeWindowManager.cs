@@ -11,10 +11,10 @@ public sealed class FakeWindowManager : IWindowManager
     public List<Guid> Shown { get; } = [];
     public List<Guid> Closed { get; } = [];
 
-    public void ShowNote(NoteViewModel note)
+    public Task ShowNoteAsync(Guid noteId)
     {
-        ArgumentNullException.ThrowIfNull(note);
-        Shown.Add(note.Id);
+        Shown.Add(noteId);
+        return Task.CompletedTask;
     }
 
     public void CloseNote(Guid noteId) => Closed.Add(noteId);

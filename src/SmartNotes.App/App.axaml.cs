@@ -3,7 +3,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using SmartNotes.App.Views;
 using SmartNotes.Core;
-using SmartNotes.ViewModels;
 
 namespace SmartNotes.App;
 
@@ -37,7 +36,7 @@ public partial class App : Application
     private async Task StartAsync(ManagerWindow manager)
     {
         _services = await AppServices.StartAsync(UserPaths.Resolve());
-        _windows = new WindowManager();
+        _windows = new WindowManager(_services.Notes, _services.AutoSave);
 
         manager.NewNote = NewNoteAsync;
 
@@ -45,7 +44,7 @@ public partial class App : Application
         // where it was left.
         foreach (var note in await _services.Notes.GetActiveAsync())
         {
-            _windows.ShowNote(NewViewModel(note));
+            await _windows.ShowNoteAsync(note.Id);
         }
     }
 
@@ -57,11 +56,8 @@ public partial class App : Application
         }
 
         var note = await _services.Notes.CreateAsync();
-        _windows.ShowNote(NewViewModel(note));
+        await _windows.ShowNoteAsync(note.Id);
     }
-
-    private NoteViewModel NewViewModel(Note note)
-        => new(note, _services!.Notes, _services.AutoSave, _windows!);
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {

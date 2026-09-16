@@ -221,4 +221,36 @@ public class NoteServiceTests
         await Assert.ThrowsAsync<KeyNotFoundException>(
             () => service.PurgeAsync(Guid.CreateVersion7(), Token));
     }
+
+    [Fact]
+    public async Task SearchArchivedAsync_FindsOnlyArchivedNotes()
+    {
+        // The archive has its own search, because GetArchived and Search
+        // otherwise cannot be combined - Search excludes archived notes by design.
+        var service = NewService();
+        var live = await service.CreateAsync(Token);
+        live.Title = "milk";
+        await service.SaveAsync(live, Token);
+        _clock.Advance(TimeSpan.FromMilliseconds(5));
+        await ArchivedNoteAsync(service, "milk run, done");
+        _clock.Advance(TimeSpan.FromMilliseconds(5));
+        await ArchivedNoteAsync(service, "something else");
+
+        var found = await service.SearchArchivedAsync("milk", Token);
+
+        Assert.Equal(["milk run, done"], found.Select(n => n.Title));
+    }
+
+    [Fact]
+    public async Task SearchArchivedAsync_ForBlankText_ReturnsTheWholeArchive()
+    {
+        var service = NewService();
+        await service.CreateAsync(Token);
+        _clock.Advance(TimeSpan.FromMilliseconds(5));
+        await ArchivedNoteAsync(service, "filed");
+
+        var found = await service.SearchArchivedAsync("  ", Token);
+
+        Assert.Equal(["filed"], found.Select(n => n.Title));
+    }
 }
