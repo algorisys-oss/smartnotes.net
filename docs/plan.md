@@ -420,6 +420,14 @@ Core, `ILinkLauncher` in the app, clickable rendering in the note window.
 Both are testable almost all the way down, so this milestone should feel like
 Milestone 1 rather than Milestone 2.
 
+Done, and it did. Two things worth carrying forward. The timer's "ticking writes
+nothing" property cannot be tested by counting writes — a one-second tick keeps
+resetting a 750 ms debounce, so a broken ticker still produces no write; assert
+against the transition instead. And links ended up *beside* the note rather than
+inside it, because the body is an editable `TextBox` and making it render runs of
+formatting is a far larger change than links are worth. Labelled links still wait
+on Markdown in Milestone 6.
+
 ### Milestone 6 — After the MMF
 
 Not scheduled, kept so they are not re-argued: rich text or Markdown, images,

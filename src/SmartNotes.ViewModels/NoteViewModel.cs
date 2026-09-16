@@ -30,6 +30,7 @@ public sealed partial class NoteViewModel : ObservableObject
     private readonly IWindowManager _windows;
     private readonly TimeProvider _timeProvider;
     private readonly IUiDispatcher _ui;
+    private readonly ILinkLauncher _links;
 
     /// <param name="timeProvider">
     /// Used by the timer, if the note has one. Defaults to the system clock so
@@ -46,7 +47,8 @@ public sealed partial class NoteViewModel : ObservableObject
         AutoSaveService autoSave,
         IWindowManager windows,
         TimeProvider? timeProvider = null,
-        IUiDispatcher? ui = null)
+        IUiDispatcher? ui = null,
+        ILinkLauncher? links = null)
     {
         ArgumentNullException.ThrowIfNull(note);
         ArgumentNullException.ThrowIfNull(notes);
@@ -59,8 +61,10 @@ public sealed partial class NoteViewModel : ObservableObject
         _windows = windows;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _ui = ui ?? new ImmediateUiDispatcher();
+        _links = links ?? new NoLinkLauncher();
 
         AttachTimer();
+        ScanForLinks();
     }
 
     public Guid Id => _note.Id;
@@ -74,7 +78,47 @@ public sealed partial class NoteViewModel : ObservableObject
     public string Content
     {
         get => _note.Content;
-        set => Set(_note.Content, value, v => _note.Content = v);
+        set
+        {
+            Set(_note.Content, value, v => _note.Content = v);
+            ScanForLinks();
+        }
+    }
+
+    /// <summary>
+    /// The links in this note's text, as they are typed.
+    /// </summary>
+    /// <remarks>
+    /// Offered beside the note rather than made clickable inside it: the body is
+    /// an editable TextBox, which draws plain text and nothing else, and turning
+    /// it into something that renders runs of formatting would be a far larger
+    /// change than links are worth. Only allow-listed schemes get this far.
+    /// </remarks>
+    public IReadOnlyList<LinkSpan> Links { get; private set; } = [];
+
+    public bool HasLinks => Links.Count > 0;
+
+    [RelayCommand]
+    public async Task OpenLinkAsync(LinkSpan? link)
+    {
+        if (link is not null)
+        {
+            await _links.OpenAsync(link.Uri);
+        }
+    }
+
+    private void ScanForLinks()
+    {
+        var found = LinkScanner.Scan(_note.Content);
+
+        if (found.Count == 0 && Links.Count == 0)
+        {
+            return;
+        }
+
+        Links = found;
+        OnPropertyChanged(nameof(Links));
+        OnPropertyChanged(nameof(HasLinks));
     }
 
     public NoteColor Color

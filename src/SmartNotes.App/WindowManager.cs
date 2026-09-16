@@ -121,7 +121,11 @@ public sealed class WindowManager : IWindowManager
             return null;
         }
 
-        var viewModel = new NoteViewModel(note, _notes, _autoSave, this);
+        var viewModel = new NoteViewModel(
+            note, _notes, _autoSave, this,
+            TimeProvider.System,
+            new AvaloniaUiDispatcher(),
+            new AvaloniaLinkLauncher(() => _open.GetValueOrDefault(note.Id)));
         _viewModels[noteId] = viewModel;
         return viewModel;
     }

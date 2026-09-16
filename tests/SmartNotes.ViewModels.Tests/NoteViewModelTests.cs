@@ -19,6 +19,7 @@ public class NoteViewModelTests
     private readonly NoteService _notes;
     private readonly AutoSaveService _autoSave;
     private readonly FakeWindowManager _windows = new();
+    private readonly FakeLinkLauncher _links = new();
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
@@ -30,7 +31,7 @@ public class NoteViewModelTests
     }
 
     private async Task<NoteViewModel> NewViewModelAsync()
-        => new(await _notes.CreateAsync(Token), _notes, _autoSave, _windows);
+        => new(await _notes.CreateAsync(Token), _notes, _autoSave, _windows, links: _links);
 
     private async Task SettleAsync()
     {
@@ -51,7 +52,7 @@ public class NoteViewModelTests
         note.IsAlwaysOnTop = true;
         await _notes.SaveAsync(note, Token);
 
-        var viewModel = new NoteViewModel(note, _notes, _autoSave, _windows);
+        var viewModel = new NoteViewModel(note, _notes, _autoSave, _windows, links: _links);
 
         Assert.Equal(note.Id, viewModel.Id);
         Assert.Equal("Shopping", viewModel.Title);
@@ -242,5 +243,68 @@ public class NoteViewModelTests
         var viewModel = await NewViewModelAsync();
 
         Assert.Equal(Enum.GetValues<NoteColor>(), viewModel.AvailableColors);
+    }
+
+    [Fact]
+    public async Task Links_ForANoteWithNoUrl_AreEmpty()
+    {
+        var viewModel = await NewViewModelAsync();
+
+        viewModel.Content = "just milk and bread";
+
+        Assert.Empty(viewModel.Links);
+    }
+
+    [Fact]
+    public async Task Links_AppearAsSoonAsOneIsTyped()
+    {
+        var viewModel = await NewViewModelAsync();
+
+        viewModel.Content = "stream at https://twitch.tv/rajesh";
+
+        Assert.Equal(["https://twitch.tv/rajesh"], viewModel.Links.Select(l => l.Uri.ToString()));
+    }
+
+    [Fact]
+    public async Task Links_WhenTheUrlIsDeleted_GoAway()
+    {
+        var viewModel = await NewViewModelAsync();
+        viewModel.Content = "stream at https://twitch.tv/rajesh";
+
+        viewModel.Content = "stream cancelled";
+
+        Assert.Empty(viewModel.Links);
+    }
+
+    [Fact]
+    public async Task Links_ForADangerousScheme_AreNotOffered()
+    {
+        // The allow-list, at the layer a reader actually clicks.
+        var viewModel = await NewViewModelAsync();
+
+        viewModel.Content = "open file:///etc/passwd";
+
+        Assert.Empty(viewModel.Links);
+    }
+
+    [Fact]
+    public async Task OpenLinkCommand_HandsTheAddressToTheLauncher()
+    {
+        var viewModel = await NewViewModelAsync();
+        viewModel.Content = "stream at https://twitch.tv/rajesh";
+
+        await viewModel.OpenLinkCommand.ExecuteAsync(viewModel.Links[0]);
+
+        Assert.Equal(["https://twitch.tv/rajesh"], _links.Opened.Select(u => u.ToString()));
+    }
+
+    [Fact]
+    public async Task OpenLinkCommand_WithNothingToOpen_DoesNothing()
+    {
+        var viewModel = await NewViewModelAsync();
+
+        await viewModel.OpenLinkCommand.ExecuteAsync(null);
+
+        Assert.Empty(_links.Opened);
     }
 }
