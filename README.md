@@ -7,10 +7,10 @@ reboot. No account, no sync, no network — everything lives in one SQLite file.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net), MVVM, and a
 repository over SQLite.
 
-> **Status: Milestone 0.** The scaffold is up — eight projects, a window that
-> opens and says nothing, and a green test suite. No features yet: the domain
-> starts at Milestone 1. Everything below works today. Start at
-> [LOOP.md](LOOP.md).
+> **Status: Milestone 1 done.** A note persists — the domain, both repositories,
+> migrations, and `NoteService` — on 78 green tests. There is no UI yet beyond a
+> window that opens and says nothing; Milestone 2 is the first one you could look
+> at. Everything below works today. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 
@@ -61,6 +61,7 @@ the native library — so there is no server and no connection string.
       SmartNotes.ViewModels/          ManagerViewModel, NoteViewModel, IWindowManager
       SmartNotes.App/                 Avalonia views, WindowManager, bootstrap
     tests/
+      SmartNotes.TestKit/             the fake and the INoteRepository contract
       SmartNotes.Core.Tests/
       SmartNotes.Data.Tests/
       SmartNotes.ViewModels.Tests/

@@ -25,11 +25,13 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 0.** The scaffold exists and the suite is green:
-eight projects, a `ManagerWindow` that opens and says nothing, and the
-architecture guards below. There is no domain code yet — `Note` and
-`INoteRepository` are Milestone 1, and "The first hour" in `LOOP.md` says where to
-start. There is also no git repository yet — `git init` before the first commit.
+**The project is at Milestone 1, done.** A note persists: `Note`, `NoteColor`,
+`INoteRepository` with an in-memory fake and a SQLite implementation, `Migrator`,
+`UserPaths` and `NoteService`, on 78 green tests. There is no UI beyond the
+`ManagerWindow` that opens and says nothing — Milestone 2 is the first one a
+reader could see.
+
+`origin` is <https://github.com/algorisys-oss/smartnotes.net>, public.
 
 ## Commands
 
@@ -69,8 +71,10 @@ Dependencies run one way and nothing points back:
   `AppSettings`, `INoteRepository`, `NoteService`, `AutoSaveService`,
   `SettingsService`, `UserPaths`. References nothing but the BCL. Most tests live
   here, and new logic belongs here unless it cannot.
-- **`SmartNotes.Data`** — `SqliteNoteRepository`, the connection factory, and
-  `Migrator`. **The only project that contains SQL.** A query anywhere else is a
+- **`SmartNotes.Data`** — `SqliteNoteRepository`, `NoteDatabase` (the connection
+  factory — not named `SqliteConnectionFactory`, because Microsoft.Data.Sqlite
+  has an internal type by that name and the collision compiles into a baffling
+  "inaccessible due to its protection level"), and `Migrator`. **The only project that contains SQL.** A query anywhere else is a
   bug, not a shortcut.
 - **`SmartNotes.ViewModels`** — `ManagerViewModel`, `NoteViewModel`, and
   `IWindowManager`. **Do not add an Avalonia package reference to this project.**
@@ -121,6 +125,16 @@ instead of fragmenting it. Three ways to break that, all silent:
 correctly and stays readable in a SQL browser. Convert at the edge, never store
 local time.
 
+**`NoteService` owns what the repository refuses to decide.** A repository stores
+what it is given without an opinion and never filters archived notes out;
+`NoteService` is where "which notes should a reader see" and "delete means
+archive" live. Nothing above it should hold an `INoteRepository` of its own.
+
+**`PurgeAsync` refuses a note that is not archived.** That is the second half of
+the archive rule and it is deliberate: the only path to a real delete goes through
+the archive, so no single action destroys a note a reader can still see on their
+desktop. Do not add a convenience overload around it.
+
 **Saving is debounced, and flushed on close.** `AutoSaveService` holds a pending
 write per note. A note window closing, and app shutdown, must flush rather than
 cancel. Both paths have tests; keep them.
@@ -139,6 +153,14 @@ tests **and the run still passes**. Nothing goes red when that happens, which is
 why the version is uniform rather than per-project. Add a test project by copying
 an existing `.csproj` — `dotnet new xunit` still scaffolds v2. Test projects are
 `OutputType=Exe`, which xunit v3 requires.
+
+**`NoteRepositoryContract` in `tests/SmartNotes.TestKit` is the definition of an
+`INoteRepository`**, derived once for the in-memory fake and once for SQLite so
+the two cannot drift. A new repository method goes in the contract first, and both
+implementations answer it. Two of its tests exist only to keep the fake honest:
+the store round-trips by value, so mutating a note you inserted — or one you were
+handed back — must change nothing. `TestKit` is a library, not a test project;
+`dotnet test` does not look at it.
 
 **Two guards enforce the architecture, and they have teeth** — both were verified
 by breaking the rule on purpose and watching them fail:
