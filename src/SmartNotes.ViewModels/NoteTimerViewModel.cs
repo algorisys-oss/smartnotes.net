@@ -61,20 +61,52 @@ public sealed partial class NoteTimerViewModel : ObservableObject, IDisposable
         set => Change(value, _timer.Label, v => _timer.Label = v);
     }
 
-    /// <summary>
-    /// How long a countdown runs for, in whole minutes.
-    /// </summary>
-    /// <remarks>
-    /// Held at one minute or more: a countdown of zero is finished before it is
-    /// started, which looks like a bug rather than a choice.
-    /// </remarks>
+    /// <summary>The whole minutes part of a countdown's length.</summary>
     public int DurationMinutes
     {
         get => (int)_timer.Duration.TotalMinutes;
-        set => Change(
-            Math.Max(ShortestMinutes, value),
-            DurationMinutes,
-            v => _timer.Duration = TimeSpan.FromMinutes(v));
+        set => SetLength(Math.Max(0, value), DurationSeconds);
+    }
+
+    /// <summary>The seconds part, for a break that is not a whole number of minutes.</summary>
+    public int DurationSeconds
+    {
+        get => _timer.Duration.Seconds;
+        set => SetLength(DurationMinutes, Math.Clamp(value, 0, 59));
+    }
+
+    /// <summary>
+    /// Sets how long the countdown runs for, and starts it over.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Banked time is cleared. Choosing a length means "a break this long", not
+    /// "this long minus what I already used" - keeping the accumulated time made
+    /// picking 10 minutes show 8:00, which reads as the box having ignored you.
+    /// </para>
+    /// <para>
+    /// Zero is not a length: a countdown of nothing is finished before it starts.
+    /// Under a second, it falls back to the shortest one worth having.
+    /// </para>
+    /// </remarks>
+    private void SetLength(int minutes, int seconds)
+    {
+        var wanted = new TimeSpan(0, minutes, seconds);
+        if (wanted <= TimeSpan.Zero)
+        {
+            wanted = TimeSpan.FromMinutes(ShortestMinutes);
+        }
+
+        if (wanted == _timer.Duration && _timer.Accumulated == TimeSpan.Zero)
+        {
+            return;
+        }
+
+        _timer.Duration = wanted;
+        _timer.Accumulated = TimeSpan.Zero;
+
+        Redraw();
+        _onTransition();
     }
 
     public bool IsCountingDown => _timer.Direction == TimerDirection.CountDown;
@@ -101,7 +133,7 @@ public sealed partial class NoteTimerViewModel : ObservableObject, IDisposable
         _timer.Direction == TimerDirection.CountDown ? TimerDirection.CountUp : TimerDirection.CountDown);
 
     [RelayCommand]
-    public void SetDuration(int minutes) => DurationMinutes = minutes;
+    public void SetDuration(int minutes) => SetLength(minutes, 0);
 
     /// <summary>
     /// Changes a stored field, and only asks for a write when something actually
@@ -201,6 +233,7 @@ public sealed partial class NoteTimerViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasFinished));
         OnPropertyChanged(nameof(Label));
         OnPropertyChanged(nameof(DurationMinutes));
+        OnPropertyChanged(nameof(DurationSeconds));
         OnPropertyChanged(nameof(IsCountingDown));
         OnPropertyChanged(nameof(CanEdit));
     }

@@ -57,7 +57,7 @@
         </Style>
     </Window.Styles>
 
-    <Border BorderBrush="#33000000" BorderThickness="1">
+    <Border x:Name="NoteChrome" BorderThickness="1">
     <Border.ContextMenu>
         <ContextMenu>
             <MenuItem Header="Yellow" Command="{Binding SetColorCommand}" CommandParameter="{x:Static core:NoteColor.Yellow}" />
@@ -193,7 +193,7 @@
                 <WrapPanel Grid.Row="1" Grid.ColumnSpan="6"
                            x:Name="TimerEditRow"
                            Orientation="Horizontal"
-                           Margin="0,4,0,0"
+                           Margin="0,4,4,0"
                            IsVisible="{Binding CanEdit}">
 
                     <Button x:Name="TimerDirectionToggle"
@@ -223,16 +223,38 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
+                    <!-- Minutes and seconds separately: a break is not always a
+                         whole number of minutes, and a single "minutes" box
+                         cannot say 2:30. -->
                     <NumericUpDown x:Name="TimerMinutes"
                                    Value="{Binding DurationMinutes}"
                                    IsVisible="{Binding IsCountingDown}"
-                                   Minimum="1"
+                                   ToolTip.Tip="Minutes"
+                                   Minimum="0"
                                    Maximum="600"
                                    Increment="1"
                                    FormatString="0"
                                    FontSize="11"
-                                   Width="112"
+                                   Width="96"
                                    Margin="3,0,0,0"
+                                   ShowButtonSpinner="True" />
+
+                    <TextBlock Text=":"
+                               IsVisible="{Binding IsCountingDown}"
+                               Foreground="#1A1A1A"
+                               VerticalAlignment="Center"
+                               Margin="3,0" />
+
+                    <NumericUpDown x:Name="TimerSeconds"
+                                   Value="{Binding DurationSeconds}"
+                                   IsVisible="{Binding IsCountingDown}"
+                                   ToolTip.Tip="Seconds"
+                                   Minimum="0"
+                                   Maximum="59"
+                                   Increment="5"
+                                   FormatString="00"
+                                   FontSize="11"
+                                   Width="96"
                                    ShowButtonSpinner="True" />
                 </WrapPanel>
             </Grid>

@@ -6,13 +6,12 @@ since, so it stops living in someone's head.
 
 ## Polish
 
-- **The focused note should look a little different from the others.** With half
-  a dozen notes open on a desktop, nothing says which one the keystrokes are
-  going into. Probably a slightly stronger border or a marginally darker title
-  strip while the window is active — small enough that it does not turn a sticky
-  note into a form, clear enough to see without looking for it. `Window` raises
-  `Activated` and `Deactivated`, so the state is available; what it should look
-  like is the open question, and worth trying two or three ways before picking.
+_Nothing open right now._
+
+Done: **the focused note looks different** — a darker, slightly thicker edge
+while the window is active, and only the edge, because repainting the paper on
+focus turns a desktop full of notes into a flicker. See `NoteWindow.MarkActive`
+and `FocusedNoteTests`.
 
 ## Known limitations, deliberately accepted for now
 

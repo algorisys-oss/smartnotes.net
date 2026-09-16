@@ -262,4 +262,41 @@ public class NoteTimerWindowTests
         Assert.Equal(12, note.Timer!.DurationMinutes);
         Assert.Equal("12:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
     }
+
+    [AvaloniaFact]
+    public void TimerSeconds_WhenTypedIntoDirectly_ReachesTheTimer()
+    {
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+
+        window.FindControl<NumericUpDown>("TimerMinutes")!
+            .GetVisualDescendants().OfType<TextBox>().First().Text = "2";
+        window.FindControl<NumericUpDown>("TimerSeconds")!
+            .GetVisualDescendants().OfType<TextBox>().First().Text = "30";
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(2, note.Timer!.DurationMinutes);
+        Assert.Equal(30, note.Timer.DurationSeconds);
+        Assert.Equal("2:30", window.FindControl<TextBlock>("TimerDisplay")!.Text);
+    }
+
+    /// <summary>
+    /// Picking a preset gives that whole length, not that length minus whatever
+    /// already ran - which is what it did, and read as the button being ignored.
+    /// </summary>
+    [AvaloniaFact]
+    public void TimerPreset_PressedAfterSomeOfTheBreakRan_GivesTheWholeLength()
+    {
+        var window = OpenWindow(withTimer: true);
+        var note = (NoteViewModel)window.DataContext!;
+        note.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(3));
+        note.Timer.PauseCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        note.Timer.SetDurationCommand.Execute(10);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("10:00", window.FindControl<TextBlock>("TimerDisplay")!.Text);
+    }
 }

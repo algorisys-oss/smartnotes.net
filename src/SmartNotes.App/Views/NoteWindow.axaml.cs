@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using SmartNotes.ViewModels;
@@ -50,6 +52,12 @@ public partial class NoteWindow : Window
         // Window exposes no styled property for its position, so this is the
         // only way to hear about a drag finishing somewhere new.
         PositionChanged += OnPositionChanged;
+
+        // Which note the keystrokes are going into. With several open there was
+        // nothing saying so.
+        Activated += (_, _) => MarkActive(true);
+        Deactivated += (_, _) => MarkActive(false);
+        MarkActive(false);
     }
 
     public NoteWindow(NoteViewModel note) : this() => Bind(note);
@@ -128,6 +136,41 @@ public partial class NoteWindow : Window
         _closeConfirmed = true;
         Close();
     }
+
+    /// <summary>Whether this is the note with the keyboard.</summary>
+    public bool IsActiveNote { get; private set; }
+
+    /// <summary>
+    /// Marks this note as the active one, or not.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only the edge changes. The paper keeps its colour - a note is paper, not a
+    /// form, and repainting it on focus would turn the desktop into a flicker.
+    /// A darker, slightly thicker border reads at a glance without asking to be
+    /// looked at.
+    /// </para>
+    /// <para>
+    /// Purely visual: nothing here touches the note, so clicking between windows
+    /// costs no disk write. <c>FocusedNoteTests</c> holds both of those.
+    /// </para>
+    /// </remarks>
+    public void MarkActive(bool active)
+    {
+        IsActiveNote = active;
+
+        var chrome = this.FindControl<Border>("NoteChrome");
+        if (chrome is null)
+        {
+            return;
+        }
+
+        chrome.BorderBrush = active ? ActiveEdge : RestingEdge;
+        chrome.BorderThickness = new Thickness(active ? 2 : 1);
+    }
+
+    private static readonly IBrush ActiveEdge = new SolidColorBrush(Color.FromArgb(0xBB, 0x00, 0x00, 0x00));
+    private static readonly IBrush RestingEdge = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x00, 0x00));
 
     private void OnCloseClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
 

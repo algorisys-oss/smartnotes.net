@@ -377,8 +377,13 @@ public class NoteTimerViewModelTests
         Assert.Equal("15:00", viewModel.Timer.Display);
     }
 
+    /// <summary>
+    /// Choosing a length means "a break this long", not "this long minus what I
+    /// already used". It gave 8:00 at first, which reads as the box having
+    /// ignored you.
+    /// </summary>
     [Fact]
-    public async Task DurationMinutes_ChangedWhilePaused_CountsFromTheNewLengthLessWhatWasUsed()
+    public async Task DurationMinutes_ChangedAfterSomeOfItRan_StartsTheWholeLengthAgain()
     {
         var viewModel = await NoteWithTimerAsync();
         viewModel.Timer!.StartCommand.Execute(null);
@@ -387,7 +392,83 @@ public class NoteTimerViewModelTests
 
         viewModel.Timer.DurationMinutes = 10;
 
-        Assert.Equal("8:00", viewModel.Timer.Display);
+        Assert.Equal("10:00", viewModel.Timer.Display);
+    }
+
+    [Fact]
+    public async Task SetDurationCommand_AfterSomeOfItRan_AlsoStartsTheWholeLengthAgain()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        viewModel.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(3));
+        viewModel.Timer.PauseCommand.Execute(null);
+
+        viewModel.Timer.SetDurationCommand.Execute(15);
+
+        Assert.Equal("15:00", viewModel.Timer.Display);
+    }
+
+    [Fact]
+    public async Task DurationSeconds_CanBeSetOnTheirOwn()
+    {
+        // A break is not always a whole number of minutes.
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.DurationMinutes = 2;
+        viewModel.Timer.DurationSeconds = 30;
+        await SettleAsync();
+
+        Assert.Equal("2:30", viewModel.Timer.Display);
+        Assert.Equal(
+            TimeSpan.FromSeconds(150),
+            (await _repository.GetByIdAsync(viewModel.Id, Token))!.Timer!.Duration);
+    }
+
+    [Fact]
+    public async Task DurationSeconds_ReadBackFromATimerWithBoth_AreJustTheSeconds()
+    {
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.DurationMinutes = 7;
+        viewModel.Timer.DurationSeconds = 45;
+
+        Assert.Equal(7, viewModel.Timer.DurationMinutes);
+        Assert.Equal(45, viewModel.Timer.DurationSeconds);
+    }
+
+    [Fact]
+    public async Task DurationSeconds_SetOutOfRange_AreHeldToTheMinute()
+    {
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.DurationSeconds = 90;
+        Assert.InRange(viewModel.Timer.DurationSeconds, 0, 59);
+
+        viewModel.Timer.DurationSeconds = -5;
+        Assert.InRange(viewModel.Timer.DurationSeconds, 0, 59);
+    }
+
+    [Fact]
+    public async Task Duration_OfZeroMinutesAndZeroSeconds_IsNotAllowed()
+    {
+        // A countdown of nothing is finished before it starts.
+        var viewModel = await NoteWithTimerAsync();
+
+        viewModel.Timer!.DurationMinutes = 0;
+        viewModel.Timer.DurationSeconds = 0;
+
+        Assert.True(viewModel.Timer.DurationMinutes > 0 || viewModel.Timer.DurationSeconds > 0);
+    }
+
+    [Fact]
+    public async Task DurationMinutes_SetToZeroWithSecondsAlreadySet_KeepsTheSeconds()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        viewModel.Timer!.DurationSeconds = 30;
+
+        viewModel.Timer.DurationMinutes = 0;
+
+        Assert.Equal("0:30", viewModel.Timer.Display);
     }
 
     /// <summary>
