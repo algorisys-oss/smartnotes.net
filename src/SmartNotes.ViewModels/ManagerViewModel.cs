@@ -84,6 +84,9 @@ public sealed partial class ManagerViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void OpenSettings() => _windows.ShowSettings();
+
+    [RelayCommand]
     public Task OpenAsync(NoteListItem? item)
         => item is null ? Task.CompletedTask : _windows.ShowNoteAsync(item.Id);
 

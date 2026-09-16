@@ -17,22 +17,34 @@ public sealed class WindowManager : IWindowManager
 {
     private readonly NoteService _notes;
     private readonly AutoSaveService _autoSave;
+    private readonly Func<SettingsViewModel>? _newSettings;
+    private SettingsWindow? _settingsWindow;
     private readonly Dictionary<Guid, NoteWindow> _open = [];
     private readonly Dictionary<Guid, NoteViewModel> _viewModels = [];
 
-    public WindowManager(NoteService notes, AutoSaveService autoSave)
+    /// <param name="newSettings">
+    /// How to build the settings view-model, when one is wanted. A factory
+    /// rather than an instance so that nothing reads the database until someone
+    /// actually opens the window - and optional, because the tests that are
+    /// about note windows have no business standing up a settings store.
+    /// </param>
+    public WindowManager(NoteService notes, AutoSaveService autoSave, Func<SettingsViewModel>? newSettings = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(autoSave);
 
         _notes = notes;
         _autoSave = autoSave;
+        _newSettings = newSettings;
     }
 
     public IReadOnlyCollection<Guid> OpenNotes => _open.Keys;
 
     /// <summary>The live view-model for a note, if one has been built.</summary>
     public NoteViewModel? ViewModelFor(Guid noteId) => _viewModels.GetValueOrDefault(noteId);
+
+    /// <summary>The settings window's view-model, while that window is open.</summary>
+    public SettingsViewModel? OpenSettings => _settingsWindow?.DataContext as SettingsViewModel;
 
     public async Task ShowNoteAsync(Guid noteId)
     {
@@ -64,6 +76,28 @@ public sealed class WindowManager : IWindowManager
         };
 
         window.Show();
+    }
+
+    public void ShowSettings()
+    {
+        if (_settingsWindow is not null)
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+
+        if (_newSettings is null)
+        {
+            return;
+        }
+
+        var settings = _newSettings();
+        _settingsWindow = new SettingsWindow(settings);
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
+
+        // After Show, so the controls exist to be filled in.
+        _ = settings.LoadAsync();
     }
 
     public void CloseNote(Guid noteId)

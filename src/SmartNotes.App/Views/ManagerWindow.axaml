@@ -30,10 +30,22 @@
                      PlaceholderText="Search notes…"
                      Padding="8,6" />
 
-            <ToggleSwitch x:Name="ArchiveToggle"
-                          IsChecked="{Binding ShowingArchive}"
-                          OnContent="Archive"
-                          OffContent="Desktop" />
+            <Grid ColumnDefinitions="*,Auto">
+                <ToggleSwitch Grid.Column="0"
+                              x:Name="ArchiveToggle"
+                              IsChecked="{Binding ShowingArchive}"
+                              OnContent="Archive"
+                              OffContent="Desktop" />
+
+                <Button Grid.Column="1"
+                        x:Name="SettingsButton"
+                        Command="{Binding OpenSettingsCommand}"
+                        ToolTip.Tip="Settings"
+                        Content="&#x2699;"
+                        FontSize="15"
+                        Padding="8,4"
+                        VerticalAlignment="Center" />
+            </Grid>
         </StackPanel>
 
         <TextBlock DockPanel.Dock="Bottom"
