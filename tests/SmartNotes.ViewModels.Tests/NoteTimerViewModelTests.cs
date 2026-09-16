@@ -389,4 +389,73 @@ public class NoteTimerViewModelTests
 
         Assert.Equal("8:00", viewModel.Timer.Display);
     }
+
+    /// <summary>
+    /// Pause banks what has run, so it is not a way back to the top. Without a
+    /// reset, a timer part-way through could only be restarted - which starts it
+    /// running - and there was no way to stop one and leave it ready.
+    /// </summary>
+    [Fact]
+    public async Task ResetCommand_StopsTheTimerAndPutsItBackToTheTop()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        viewModel.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(2));
+
+        viewModel.Timer.ResetCommand.Execute(null);
+        await SettleAsync();
+
+        Assert.False(viewModel.Timer.IsRunning);
+        Assert.Equal("5:00", viewModel.Timer.Display);
+
+        var stored = (await _repository.GetByIdAsync(viewModel.Id, Token))!.Timer!;
+        Assert.False(stored.IsRunning);
+        Assert.Equal(TimeSpan.Zero, stored.Accumulated);
+    }
+
+    [Fact]
+    public async Task ResetCommand_AfterACountdownFinished_MakesItEditableAgain()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        viewModel.Timer!.StartCommand.Execute(null);
+        _clock.Advance(TimeSpan.FromMinutes(6));
+        Assert.False(viewModel.Timer.CanEdit);
+
+        viewModel.Timer.ResetCommand.Execute(null);
+
+        Assert.True(viewModel.Timer.CanEdit);
+        Assert.False(viewModel.Timer.HasFinished);
+    }
+
+    /// <summary>
+    /// A finished countdown reads 0:00 and cannot change, so waking up every
+    /// second to redraw it is work nobody asked for - the same reason a stopped
+    /// timer does not tick.
+    /// </summary>
+    [Fact]
+    public async Task Ticking_AfterTheCountdownFinishes_Stops()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        viewModel.Timer!.StartCommand.Execute(null);
+
+        _clock.Advance(TimeSpan.FromMinutes(6));
+        var postsOnceFinished = _ui.Posted;
+        _clock.Advance(TimeSpan.FromHours(2));
+
+        Assert.Equal(postsOnceFinished, _ui.Posted);
+    }
+
+    [Fact]
+    public async Task Ticking_OnACountUp_KeepsGoingBecauseItNeverFinishes()
+    {
+        var viewModel = await NoteWithTimerAsync();
+        viewModel.Timer!.ToggleDirectionCommand.Execute(null);
+        viewModel.Timer.StartCommand.Execute(null);
+
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var postsSoFar = _ui.Posted;
+        _clock.Advance(TimeSpan.FromMinutes(1));
+
+        Assert.True(_ui.Posted > postsSoFar);
+    }
 }
