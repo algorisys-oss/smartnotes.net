@@ -79,7 +79,7 @@
              this strip is it; NoteWindow.axaml.cs calls BeginMoveDrag. -->
         <Grid x:Name="Header"
               Grid.Row="0"
-              ColumnDefinitions="*,Auto,Auto,Auto"
+              ColumnDefinitions="*,Auto,Auto,Auto,Auto"
               Background="{Binding Color, Converter={x:Static app:NoteBrushes.Edge}}">
 
             <!-- Not hit-testable until you double-click it. A TextBox fills its
@@ -99,7 +99,57 @@
                      Padding="8,4"
                      VerticalAlignment="Center" />
 
-            <ToggleButton Grid.Column="1"
+            <!-- The colours were only in the context menu, and right-clicking the
+                 body opens the text box's own Cut/Copy/Paste menu instead, so
+                 they were hard to find. The dot is painted the note's colour, which
+                 says what the button is for without a word. -->
+            <Button Grid.Column="1"
+                    x:Name="ColorButton"
+                    ToolTip.Tip="Change this note's colour"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="8,4">
+                <Ellipse Width="12" Height="12"
+                         Fill="{Binding Color, Converter={x:Static app:NoteBrushes.Paper}}"
+                         Stroke="#555"
+                         StrokeThickness="1" />
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight">
+                        <!-- Bound to the note's colour both ways: the selection is
+                             the mark on the current colour, and picking one is
+                             the whole of recolouring. The flyout stays open and the
+                             note repaints behind it, so a colour can be tried and
+                             another picked. -->
+                        <ListBox x:Name="ColorSwatches"
+                                 ItemsSource="{Binding AvailableColors}"
+                                 SelectedItem="{Binding Color}"
+                                 Background="Transparent">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="6" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="3" />
+                                    <Setter Property="CornerRadius" Value="14" />
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="core:NoteColor">
+                                    <Ellipse Width="22" Height="22"
+                                             ToolTip.Tip="{Binding}"
+                                             Fill="{Binding Converter={x:Static app:NoteBrushes.Paper}}"
+                                             Stroke="#66000000"
+                                             StrokeThickness="1" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+
+            <ToggleButton Grid.Column="2"
                     x:Name="PinButton"
                     IsChecked="{Binding IsAlwaysOnTop}"
                     ToolTip.Tip="Keep this note on top of other windows (Ctrl+P)"
@@ -109,7 +159,7 @@
                     BorderThickness="0"
                     Padding="8,4" />
 
-            <Button Grid.Column="2"
+            <Button Grid.Column="3"
                     x:Name="ArchiveButton"
                     Command="{Binding ArchiveCommand}"
                     ToolTip.Tip="Archive this note (it can be restored)"
@@ -119,7 +169,7 @@
                     BorderThickness="0"
                     Padding="8,4" />
 
-            <Button Grid.Column="3"
+            <Button Grid.Column="4"
                     x:Name="CloseButton"
                     Click="OnCloseClicked"
                     ToolTip.Tip="Close the window, keep the note (Ctrl+W or Esc)"
