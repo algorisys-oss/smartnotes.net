@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 673 green tests.
+through Velopack. 676 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -310,7 +310,10 @@ to the `TextBox` editor. Things about it that were learned rather than planned:
   `FormattedNote` does not know what a checkbox is. `ToggleTask` checks its position
   against a fresh parse, so a stale one flips nothing.
 - **Editing state is never stored**, and switching in and out writes nothing. An
-  empty note always shows the editor, which is what makes a new note ready to type.
+  empty note shows the editor, which is what makes a new note ready to type —
+  except while a to-do is being added, whose new line lives in the formatted note.
+  Without that exception the line was hidden, the keyboard stayed in the editor,
+  and the first letter typed became the note's text.
 - **Leaving the editor renders it — except into its own Cut/Copy/Paste menu**, or
   the editor is swapped out from under a paste. The test for that right-clicks for
   real: opening the flyout with `ShowAt` does not move focus, and the test passed

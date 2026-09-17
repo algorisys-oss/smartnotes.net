@@ -119,7 +119,12 @@ public sealed partial class NoteViewModel : ObservableObject
     /// nothing to format - and which is what a new note is, so it opens ready to
     /// type into.
     /// </summary>
-    public bool ShowsEditor => IsEditing || string.IsNullOrWhiteSpace(_note.Content);
+    /// <remarks>
+    /// Not while a to-do is being added: the new line is drawn in the formatted note,
+    /// and an empty note showing the editor instead hid that line and kept the
+    /// keyboard - the first letter typed became the note's text.
+    /// </remarks>
+    public bool ShowsEditor => IsEditing || (string.IsNullOrWhiteSpace(_note.Content) && !IsAddingTodo);
 
     /// <summary>Where the caret goes when the editor opens.</summary>
     public int EditCaret { get; private set; }
@@ -358,6 +363,11 @@ public sealed partial class NoteViewModel : ObservableObject
         IsAddingTodo = adding;
         OnPropertyChanged(nameof(IsAddingTodo));
         OnPropertyChanged(nameof(ShowsTodoPrompt));
+
+        // On an empty note, adding is what decides between the editor and the list.
+        OnPropertyChanged(nameof(ShowsEditor));
+        OnPropertyChanged(nameof(ShowsLinkBar));
+        OnPropertyChanged(nameof(ShowsTodoFooter));
     }
 
     /// <summary>
