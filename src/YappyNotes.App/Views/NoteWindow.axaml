@@ -80,6 +80,17 @@
             <Setter Property="Fill" Value="#80333333" />
         </Style>
 
+        <!-- Small actions under a checklist, drawn as words rather than as keys. -->
+        <Style Selector="Button.textlink">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Padding" Value="5,1" />
+            <Setter Property="Foreground" Value="#1A3E8C" />
+            <!-- On the control, not only on its presenter: Fluent's fill comes
+                 through the control's own Background, which the paper-coloured
+                 title buttons avoid the same way. -->
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
         <!-- The add-a-to-do field reads as a line to write on, not as a form: the
              note's TextBox styles above take its border away, so this puts back a
              faint rule under it. Declared after them, which is what lets it win. -->
@@ -112,6 +123,7 @@
             <Separator />
             <MenuItem Header="Keep on top" Command="{Binding TogglePinCommand}" />
             <MenuItem Header="Add a to-do" Command="{Binding StartTodoListCommand}" />
+            <MenuItem Header="Clear completed to-dos" Command="{Binding ClearCompletedCommand}" IsVisible="{Binding HasCompletedTodos}" />
             <MenuItem Header="Add a timer" Command="{Binding AddTimerCommand}" IsVisible="{Binding !HasTimer}" />
             <MenuItem Header="Remove the timer" Command="{Binding RemoveTimerCommand}" IsVisible="{Binding HasTimer}" />
             <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
@@ -406,6 +418,33 @@
                          FontSize="13"
                          Margin="0,4,0,0"
                          Padding="2,3" />
+
+                <!-- How far through the list, and clearing what is done. Undo
+                     stays here straight after a clear, even once nothing is left
+                     to count, because clearing deletes text. -->
+                <Grid x:Name="TodoFooter"
+                      ColumnDefinitions="*,Auto,Auto"
+                      IsVisible="{Binding ShowsTodoFooter}"
+                      Margin="0,6,0,0">
+                    <TextBlock x:Name="TodoProgress"
+                               Text="{Binding TodoProgressText}"
+                               Foreground="#1a1a1a"
+                               Opacity="0.6"
+                               FontSize="11"
+                               VerticalAlignment="Center" />
+                    <Button Grid.Column="1"
+                            x:Name="TodoClear"
+                            Classes="textlink"
+                            Content="Clear completed"
+                            IsVisible="{Binding HasCompletedTodos}"
+                            Command="{Binding ClearCompletedCommand}" />
+                    <Button Grid.Column="2"
+                            x:Name="TodoUndoClear"
+                            Classes="textlink"
+                            Content="Undo"
+                            IsVisible="{Binding CanUndoClear}"
+                            Command="{Binding UndoClearCommand}" />
+                </Grid>
             </StackPanel>
         </ScrollViewer>
 

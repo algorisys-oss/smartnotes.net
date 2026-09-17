@@ -233,6 +233,67 @@ public sealed partial class NoteViewModel : ObservableObject
         return edit.SelectionStart;
     }
 
+    /// <summary>"2 of 5 done", for the footer under a formatted checklist.</summary>
+    public string TodoProgressText
+    {
+        get
+        {
+            var progress = TodoList.Progress(_note.Content);
+            return progress.Total == 0 ? string.Empty : $"{progress.Done} of {progress.Total} done";
+        }
+    }
+
+    /// <summary>
+    /// Whether the footer under a formatted note shows: on a checklist, and straight
+    /// after clearing one, even if nothing is left - that is where its Undo is.
+    /// </summary>
+    public bool ShowsTodoFooter => !ShowsEditor && (HasTodos || CanUndoClear);
+
+    /// <summary>
+    /// The note as it was before the last "Clear completed", and as that clear left
+    /// it. The clear can be taken back only while the note is still as it left it:
+    /// after any other change, putting the old text back would undo that too.
+    /// </summary>
+    private (string Before, string After)? _lastClear;
+
+    /// <summary>Whether any to-do is ticked - otherwise there is nothing to clear.</summary>
+    public bool HasCompletedTodos => TodoList.Progress(_note.Content).Done > 0;
+
+    public bool CanUndoClear => _lastClear is { } clear && clear.After == _note.Content;
+
+    /// <summary>
+    /// Removes the ticked to-dos. Deleting text on one click is the kind of thing this
+    /// app is careful about, so it can be undone straight away rather than being
+    /// asked about first every time.
+    /// </summary>
+    [RelayCommand]
+    public void ClearCompleted()
+    {
+        var before = _note.Content;
+        var after = TodoList.ClearCompleted(before);
+
+        if (after == before)
+        {
+            return;
+        }
+
+        _lastClear = (before, after);
+        Content = after;
+    }
+
+    [RelayCommand]
+    public void UndoClear()
+    {
+        if (!CanUndoClear)
+        {
+            return;
+        }
+
+        var before = _lastClear!.Value.Before;
+        _lastClear = null;
+        Content = before;
+    }
+
     private void SetStartingTodoList(bool starting)
     {
         if (IsStartingTodoList == starting)
@@ -284,6 +345,7 @@ public sealed partial class NoteViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowsEditor));
         OnPropertyChanged(nameof(ShowsLinkBar));
         OnPropertyChanged(nameof(ShowsTodoAdder));
+        OnPropertyChanged(nameof(ShowsTodoFooter));
     }
 
     private void Reparse()
@@ -297,6 +359,10 @@ public sealed partial class NoteViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowsLinkBar));
         OnPropertyChanged(nameof(HasTodos));
         OnPropertyChanged(nameof(ShowsTodoAdder));
+        OnPropertyChanged(nameof(TodoProgressText));
+        OnPropertyChanged(nameof(HasCompletedTodos));
+        OnPropertyChanged(nameof(CanUndoClear));
+        OnPropertyChanged(nameof(ShowsTodoFooter));
     }
 
     [RelayCommand]

@@ -150,4 +150,88 @@ public class NoteTodoTests
         Assert.Null(caret);
         Assert.Equal("back soon", note.Content);
     }
+
+    [Fact]
+    public async Task TodoProgressText_ForAChecklist_SaysHowManyAreDone()
+    {
+        var note = await NoteSayingAsync("- [x] bread\n- [ ] milk\n- [x] tea");
+
+        Assert.Equal("2 of 3 done", note.TodoProgressText);
+    }
+
+    [Fact]
+    public async Task TodoProgressText_AfterTickingOne_Updates()
+    {
+        var note = await NoteSayingAsync("- [ ] milk");
+
+        await note.PressAsync(note.Lines[0], renderedIndex: 0);
+
+        Assert.Equal("1 of 1 done", note.TodoProgressText);
+    }
+
+    [Fact]
+    public async Task ShowsTodoFooter_ForANoteWithoutTodos_IsFalse()
+    {
+        var note = await NoteSayingAsync("back soon");
+
+        Assert.False(note.ShowsTodoFooter);
+    }
+
+    [Fact]
+    public async Task ClearCompleted_RemovesTheTickedItemsAndSaves()
+    {
+        var note = await NoteSayingAsync("- [x] bread\n- [ ] milk");
+
+        note.ClearCompletedCommand.Execute(null);
+        _clock.Advance(Debounce);
+        await _autoSave.WhenIdleAsync();
+
+        Assert.Equal("- [ ] milk", (await _repository.GetByIdAsync(note.Id, Token))!.Content);
+    }
+
+    /// <summary>
+    /// Clearing deletes text, and losing a note to a mis-click is the one bug this
+    /// app cannot afford - so the clear can be taken back, rather than asked about
+    /// first every time.
+    /// </summary>
+    [Fact]
+    public async Task UndoClear_StraightAfterClearing_PutsTheItemsBack()
+    {
+        const string content = "- [x] bread\n- [ ] milk";
+        var note = await NoteSayingAsync(content);
+        note.ClearCompletedCommand.Execute(null);
+
+        Assert.True(note.CanUndoClear);
+        note.UndoClearCommand.Execute(null);
+
+        Assert.Equal(content, note.Content);
+        Assert.False(note.CanUndoClear);
+    }
+
+    /// <summary>
+    /// Once the note has changed again, putting the old text back would also undo
+    /// that change, which nobody asked for.
+    /// </summary>
+    [Fact]
+    public async Task CanUndoClear_AfterTheNoteChangedAgain_IsFalse()
+    {
+        var note = await NoteSayingAsync("- [x] bread\n- [ ] milk");
+        note.ClearCompletedCommand.Execute(null);
+
+        note.NewTodoText = "eggs";
+        note.AddTodoCommand.Execute(null);
+
+        Assert.False(note.CanUndoClear);
+    }
+
+    [Fact]
+    public async Task ClearCompleted_OfEveryItem_KeepsTheFooterSoUndoCanBeReached()
+    {
+        var note = await NoteSayingAsync("back soon\n- [x] bread");
+
+        note.ClearCompletedCommand.Execute(null);
+
+        Assert.False(note.HasTodos);
+        Assert.True(note.ShowsTodoFooter);
+    }
 }

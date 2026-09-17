@@ -1,3 +1,5 @@
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Microsoft.Extensions.Time.Testing;
@@ -152,5 +154,20 @@ public class ManagerWindowTests
         await SettledAsync(manager);
 
         Assert.Equal("1 note archived", window.FindControl<TextBlock>("StatusCount")!.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task NoteRow_ForANoteWithTodos_ShowsHowManyAreDone()
+    {
+        var note = await _notes.CreateAsync();
+        note.Content = "- [x] bread\n- [ ] milk";
+        await _notes.SaveAsync(note);
+
+        var (window, manager) = Open();
+        await SettledAsync(manager);
+        Dispatcher.UIThread.RunJobs();
+
+        var shown = window.GetVisualDescendants().OfType<TextBlock>().Where(text => text.Name == "RowTodoProgress").ToList();
+        Assert.Equal(["1/2"], shown.Select(text => text.Text));
     }
 }
