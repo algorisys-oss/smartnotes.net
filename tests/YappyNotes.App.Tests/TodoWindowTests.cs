@@ -1,0 +1,144 @@
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Threading;
+using Microsoft.Extensions.Time.Testing;
+using YappyNotes.App.Views;
+using YappyNotes.Core;
+using YappyNotes.TestKit;
+using YappyNotes.ViewModels;
+
+namespace YappyNotes.App.Tests;
+
+/// <summary>Adding to-dos from the note window, with the keyboard as it is really pressed.</summary>
+public class TodoWindowTests
+{
+    private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 9, 17, 12, 0, 0, TimeSpan.Zero));
+    private readonly InMemoryNoteRepository _repository = new();
+    private readonly NoteService _notes;
+    private readonly AutoSaveService _autoSave;
+
+    public TodoWindowTests()
+    {
+        _notes = new NoteService(_repository, _clock);
+        _autoSave = new AutoSaveService(_notes, _clock, TimeSpan.FromMilliseconds(750));
+    }
+
+    private NoteWindow OpenWith(string content)
+    {
+        var note = _notes.CreateAsync().GetAwaiter().GetResult();
+        note.Content = content;
+
+        var window = new NoteWindow(new NoteViewModel(note, _notes, _autoSave, new FakeWindowManager()));
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        return window;
+    }
+
+    private static NoteViewModel NoteOf(NoteWindow window) => (NoteViewModel)window.DataContext!;
+
+    private static TextBox Adder(NoteWindow window)
+        => window.FindControl<TextBox>("TodoAdder") ?? throw new InvalidOperationException("the note has no TodoAdder field");
+
+    private static bool ShowsAdder(NoteWindow window)
+        => window.FindControl<ScrollViewer>("FormattedScroll")!.IsVisible && Adder(window).IsVisible;
+
+    private static void Press(NoteWindow window, Key key, RawInputModifiers modifiers = RawInputModifiers.None)
+    {
+        window.KeyPress(key, modifiers, PhysicalKey.None, null);
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaFact]
+    public void FormattedChecklist_OffersAFieldToAddATodo()
+    {
+        var window = OpenWith("- [ ] milk");
+
+        Assert.True(ShowsAdder(window));
+    }
+
+    [AvaloniaFact]
+    public void AddField_TypingAndPressingEnter_AddsTheTodoAndStaysReadyForTheNext()
+    {
+        var window = OpenWith("- [ ] milk");
+        var adder = Adder(window);
+        adder.Focus();
+        Dispatcher.UIThread.RunJobs();
+
+        window.KeyTextInput("eggs");
+        Press(window, Key.Enter);
+
+        Assert.Equal("- [ ] milk\n- [ ] eggs", NoteOf(window).Content);
+        Assert.Equal(string.Empty, adder.Text);
+        Assert.True(adder.IsFocused, "the field let go of the keyboard, so the next to-do needs a click");
+        Assert.False(NoteOf(window).IsEditing, "adding a to-do opened the Markdown editor");
+    }
+
+    /// <summary>Escape in the field is "never mind", not "close this note".</summary>
+    [AvaloniaFact]
+    public void AddField_Escape_LeavesTheFieldWithoutClosingTheNote()
+    {
+        var window = OpenWith("- [ ] milk");
+        var adder = Adder(window);
+        adder.Focus();
+        Dispatcher.UIThread.RunJobs();
+        window.KeyTextInput("eg");
+
+        Press(window, Key.Escape);
+
+        Assert.True(window.IsVisible);
+        Assert.False(adder.IsFocused);
+        Assert.Equal(string.Empty, adder.Text);
+    }
+
+    [AvaloniaFact]
+    public void AddATodoFromTheMenu_OnANoteWithoutAChecklist_OpensTheFieldWithTheKeyboardInIt()
+    {
+        var window = OpenWith("back soon");
+        var chrome = window.FindControl<Border>("NoteChrome")!;
+
+        // Opened first, as a right-click would: a menu's items are not bound to the
+        // note until then, and their commands are still null.
+        chrome.ContextMenu!.Open(chrome);
+        Dispatcher.UIThread.RunJobs();
+        var item = chrome.ContextMenu.Items
+            .OfType<MenuItem>()
+            .Single(menuItem => (string?)menuItem.Header == "Add a to-do");
+        chrome.ContextMenu.Close();
+
+        item.Command!.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(ShowsAdder(window));
+        Assert.True(Adder(window).IsFocused);
+    }
+
+    [AvaloniaFact]
+    public void EditorEnter_AtTheEndOfATodo_StartsTheNextOne()
+    {
+        var window = OpenWith("- [ ] milk");
+        NoteOf(window).BeginEditingAtEnd();
+        Dispatcher.UIThread.RunJobs();
+        var editor = window.FindControl<TextBox>("Body")!;
+
+        Press(window, Key.Enter);
+
+        Assert.Equal("- [ ] milk\n- [ ] ", editor.Text);
+        Assert.Equal(editor.Text!.Length, editor.CaretIndex);
+    }
+
+    [AvaloniaFact]
+    public void EditorShiftEnter_AtTheEndOfATodo_IsAnOrdinaryLineBreak()
+    {
+        var window = OpenWith("- [ ] milk");
+        NoteOf(window).BeginEditingAtEnd();
+        Dispatcher.UIThread.RunJobs();
+        var editor = window.FindControl<TextBox>("Body")!;
+
+        Press(window, Key.Enter, RawInputModifiers.Shift);
+
+        Assert.DoesNotContain("- [ ] milk\n- [ ]", editor.Text, StringComparison.Ordinal);
+        Assert.StartsWith("- [ ] milk", editor.Text, StringComparison.Ordinal);
+    }
+}

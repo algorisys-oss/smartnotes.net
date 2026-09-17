@@ -159,6 +159,92 @@ public sealed partial class NoteViewModel : ObservableObject
 
     public void EndEditing() => SetEditing(false);
 
+    /// <summary>Whether any line of the note is a to-do.</summary>
+    public bool HasTodos => Lines.Any(line => line.Block.Kind == MarkdownBlockKind.Task);
+
+    /// <summary>
+    /// Whether the "Add a to-do" field shows under the formatted note: on a note with
+    /// a checklist, or once one has been asked for from the menu. Not while editing,
+    /// where the Markdown is in front of the reader and Enter continues a list.
+    /// </summary>
+    public bool ShowsTodoAdder => !ShowsEditor && (HasTodos || IsStartingTodoList);
+
+    /// <summary>
+    /// A to-do list has been asked for on a note that has none yet. Like editing, it
+    /// is how the note is being looked at and is never stored.
+    /// </summary>
+    public bool IsStartingTodoList { get; private set; }
+
+    /// <summary>What is typed in the "Add a to-do" field, before it is added.</summary>
+    public string NewTodoText
+    {
+        get;
+        set => SetProperty(ref field, value ?? string.Empty);
+    } = string.Empty;
+
+    /// <summary>
+    /// "Add a to-do" from the note's menu: shows the field, formatted, on a note that
+    /// has no checklist yet.
+    /// </summary>
+    [RelayCommand]
+    public void StartTodoList()
+    {
+        SetEditing(false);
+        SetStartingTodoList(true);
+    }
+
+    /// <summary>
+    /// The field was left. On a note with no checklist, and with nothing typed, it
+    /// goes away again; anything typed is kept rather than thrown away.
+    /// </summary>
+    public void StopAddingTodos()
+    {
+        if (string.IsNullOrWhiteSpace(NewTodoText))
+        {
+            SetStartingTodoList(false);
+        }
+    }
+
+    /// <summary>Adds what was typed as a to-do and empties the field for the next one.</summary>
+    [RelayCommand]
+    public void AddTodo()
+    {
+        if (string.IsNullOrWhiteSpace(NewTodoText))
+        {
+            return;
+        }
+
+        Content = TodoList.Add(_note.Content, NewTodoText);
+        NewTodoText = string.Empty;
+    }
+
+    /// <summary>
+    /// Enter in the editor, on a list line: continues, splits or ends the list.
+    /// </summary>
+    /// <returns>Where the caret goes, or null where Enter is an ordinary line break.</returns>
+    public int? ContinueListOnEnter(int caret)
+    {
+        if (!IsEditing || TodoList.ContinueOnEnter(_note.Content, caret) is not { } edit)
+        {
+            return null;
+        }
+
+        Content = edit.Content;
+        return edit.SelectionStart;
+    }
+
+    private void SetStartingTodoList(bool starting)
+    {
+        if (IsStartingTodoList == starting)
+        {
+            return;
+        }
+
+        IsStartingTodoList = starting;
+        OnPropertyChanged(nameof(IsStartingTodoList));
+        OnPropertyChanged(nameof(ShowsTodoAdder));
+    }
+
     /// <summary>
     /// Ctrl+B or Ctrl+I in the editor: wraps the selection in markers, or takes them
     /// off, and saves the way typing does.
@@ -197,6 +283,7 @@ public sealed partial class NoteViewModel : ObservableObject
         OnPropertyChanged(nameof(IsEditing));
         OnPropertyChanged(nameof(ShowsEditor));
         OnPropertyChanged(nameof(ShowsLinkBar));
+        OnPropertyChanged(nameof(ShowsTodoAdder));
     }
 
     private void Reparse()
@@ -208,6 +295,8 @@ public sealed partial class NoteViewModel : ObservableObject
         // anything to format.
         OnPropertyChanged(nameof(ShowsEditor));
         OnPropertyChanged(nameof(ShowsLinkBar));
+        OnPropertyChanged(nameof(HasTodos));
+        OnPropertyChanged(nameof(ShowsTodoAdder));
     }
 
     [RelayCommand]

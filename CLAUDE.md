@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 556 green tests.
+through Velopack. 593 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -319,6 +319,16 @@ to the `TextBox` editor. Things about it that were learned rather than planned:
   bold. The window then restores the selection — caret first, because setting
   `CaretIndex` in Avalonia 12 clears the selection, and set last it left a second
   press nothing to unbold.
+- **To-dos are added without writing Markdown, and still stored as it.**
+  `TodoList` in Core writes the `- [ ]`: Enter on a list line in the editor
+  continues, splits or ends the list (Shift+Enter is a plain line break), and the
+  "+ Add a to-do" field under a formatted checklist appends after the last item at
+  its indent. The editor's Enter is a *tunnelling* handler, because the TextBox
+  takes Enter for a line break before anything bubbling hears it. Escape in the
+  field clears it and lets go of the keyboard — `FocusManager.Focus(null)`, since
+  Avalonia 12 has no `ClearFocus` and `Window.Focus()` leaves focus where it was —
+  rather than reaching the window and closing the note. A context menu's items
+  have null commands until the menu has been opened once; tests open it first.
 - **The link bar only shows while editing.** Formatted, links are clickable where
   they are written; the bar is for when the editor's plain text is in the way.
 
