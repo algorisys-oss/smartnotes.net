@@ -65,6 +65,7 @@ public sealed partial class NoteViewModel : ObservableObject
 
         AttachTimer();
         ScanForLinks();
+        Reparse();
     }
 
     public Guid Id => _note.Id;
@@ -82,6 +83,7 @@ public sealed partial class NoteViewModel : ObservableObject
         {
             Set(_note.Content, value, v => _note.Content = v);
             ScanForLinks();
+            Reparse();
         }
     }
 
@@ -89,14 +91,104 @@ public sealed partial class NoteViewModel : ObservableObject
     /// The links in this note's text, as they are typed.
     /// </summary>
     /// <remarks>
-    /// Offered beside the note rather than made clickable inside it: the body is
-    /// an editable TextBox, which draws plain text and nothing else, and turning
-    /// it into something that renders runs of formatting would be a far larger
-    /// change than links are worth. Only allow-listed schemes get this far.
+    /// Only allow-listed schemes get this far. See <see cref="ShowsLinkBar"/> for
+    /// when they are offered.
     /// </remarks>
     public IReadOnlyList<LinkSpan> Links { get; private set; } = [];
 
     public bool HasLinks => Links.Count > 0;
+
+    /// <summary>
+    /// Whether the links are offered under the note: only while editing. Formatted,
+    /// each link is clickable where it is written, and the bar would offer it twice.
+    /// </summary>
+    public bool ShowsLinkBar => HasLinks && ShowsEditor;
+
+    /// <summary>The note's Markdown, parsed into the lines the formatted view draws.</summary>
+    public IReadOnlyList<NoteLine> Lines { get; private set; } = [];
+
+    /// <summary>
+    /// Whether the reader is typing in the Markdown rather than looking at it
+    /// formatted. How the note is being looked at, not part of the note, so it is
+    /// never stored and changing it writes nothing.
+    /// </summary>
+    public bool IsEditing { get; private set; }
+
+    /// <summary>
+    /// Whether the editor is showing. Also true of an empty note, which has
+    /// nothing to format - and which is what a new note is, so it opens ready to
+    /// type into.
+    /// </summary>
+    public bool ShowsEditor => IsEditing || string.IsNullOrWhiteSpace(_note.Content);
+
+    /// <summary>Where the caret goes when the editor opens.</summary>
+    public int EditCaret { get; private set; }
+
+    /// <summary>
+    /// A press on the formatted note. It ticks a checklist box, opens a link, or
+    /// starts editing with the caret on the character that was pressed.
+    /// </summary>
+    /// <param name="renderedIndex">Which character of the drawn line was pressed.</param>
+    /// <param name="trailing">Whether the press was on that character's right half.</param>
+    public async Task PressAsync(NoteLine line, int renderedIndex, bool trailing = false)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+
+        if (line.IsCheckBoxAt(renderedIndex))
+        {
+            // The same path as typing, so the save is the same debounced one.
+            Content = NoteMarkdown.ToggleTask(_note.Content, line.Block.CheckMarkIndex);
+            return;
+        }
+
+        if (line.RunAt(renderedIndex)?.Link is { } address)
+        {
+            await _links.OpenAsync(address);
+            return;
+        }
+
+        // The right half of a letter puts the caret after it, as in any text box.
+        // Only over text: past the end, or over the marker, there is no letter to
+        // be after.
+        var after = trailing && line.RunAt(renderedIndex) is not null ? 1 : 0;
+        BeginEditing(line.SourceIndexAt(renderedIndex) + after);
+    }
+
+    /// <summary>Starts editing with the caret after the last character - a press below the text.</summary>
+    public void BeginEditingAtEnd() => BeginEditing(_note.Content.Length);
+
+    public void EndEditing() => SetEditing(false);
+
+    private void BeginEditing(int caret)
+    {
+        EditCaret = Math.Clamp(caret, 0, _note.Content.Length);
+        OnPropertyChanged(nameof(EditCaret));
+        SetEditing(true);
+    }
+
+    private void SetEditing(bool editing)
+    {
+        if (IsEditing == editing)
+        {
+            return;
+        }
+
+        IsEditing = editing;
+        OnPropertyChanged(nameof(IsEditing));
+        OnPropertyChanged(nameof(ShowsEditor));
+        OnPropertyChanged(nameof(ShowsLinkBar));
+    }
+
+    private void Reparse()
+    {
+        Lines = [.. NoteMarkdown.Parse(_note.Content).Select(NoteLine.For)];
+        OnPropertyChanged(nameof(Lines));
+
+        // Emptying a note, or typing into an empty one, changes whether there is
+        // anything to format.
+        OnPropertyChanged(nameof(ShowsEditor));
+        OnPropertyChanged(nameof(ShowsLinkBar));
+    }
 
     [RelayCommand]
     public async Task OpenLinkAsync(LinkSpan? link)
@@ -119,6 +211,7 @@ public sealed partial class NoteViewModel : ObservableObject
         Links = found;
         OnPropertyChanged(nameof(Links));
         OnPropertyChanged(nameof(HasLinks));
+        OnPropertyChanged(nameof(ShowsLinkBar));
     }
 
     public NoteColor Color

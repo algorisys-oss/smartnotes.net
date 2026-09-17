@@ -27,24 +27,21 @@ Where it and `plan.md` disagree, `plan.md` is newer and wins.
 The SDK is pinned to `10.0.302` in `global.json` and every project targets
 `net10.0`.
 
-**The project is at Milestone 5, done; Milestone 6 is half done — the tray icon is
-in, rich text is not started.**
+**Every milestone in the plan is done, Milestone 6 included — the tray icon and
+rich text.**
 All eight MMF items hold — notes are their own draggable, resizable, pinnable,
 recolourable windows, autosaved and restored; the manager lists, searches and
 archives; there is a settings window, keyboard shortcuts, CI and packaging for
 six runtime identifiers. On top of that, a note can carry a stream timer that
-counts down or up, and the links in its text are offered beside it. The app
+counts down or up, and its text is Markdown drawn formatted — headings, bullets,
+checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 441 green tests.
+through Velopack. 526 green tests.
 
-**What is left of Milestone 6 is rich text**, and it is a separate session's
-work. `docs/plan.md` has the scope, the recommended approach and what was checked
-already — read that section before starting, and in particular the argument for
-keeping Markdown *in* `Content` rather than storing a rich-text blob: it is what
-keeps search, export and the single-file goal intact. Seven other ideas are
-parked there with their reasons, sync among them; it is rejected rather than
-deferred.
+Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
+reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
+what has been noticed since.
 
 **The app was called SmartNotes until it was renamed to YappyNotes.** Nothing in
 the code carries the old name. `UserPaths.PreviousAppFolderNames` is the one
@@ -270,12 +267,47 @@ thickens the border on `Activated`. Do not repaint the paper — a desktop of no
 changing colour as focus moves is a flicker — and do not make it touch the note,
 because clicking between windows must cost no disk write (`FocusedNoteTests`).
 
-**Links are offered beside a note, not inside it.** The body is an editable
-`TextBox`, which draws plain text and nothing else. `LinkScanner`'s allow-list —
-http, https, mailto — is checked when the link is found *and* again in
-`AvaloniaLinkLauncher`, deliberately: that second check is the one line where a
-string out of a note reaches the OS shell, and it belongs where the danger is.
-Do not "tidy away" the duplication.
+**A link's allow-list is checked twice, on purpose.** `LinkScanner`'s list — http,
+https, mailto — is applied when a link is found, bare or labelled, *and* again in
+`AvaloniaLinkLauncher`: that second check is the one line where a string out of a
+note reaches the OS shell, and it belongs where the danger is. Do not "tidy away"
+the duplication. A labelled link goes through the same list, because a label is
+exactly how a `file:` address would be disguised.
+
+**A note's text is Markdown, stored as it was typed and drawn formatted.**
+`Content` holds plain Markdown — no schema change, search still matches the words.
+`NoteMarkdown` in Core parses it; `FormattedNote` draws it; clicking the text swaps
+to the `TextBox` editor. Things about it that were learned rather than planned:
+
+- **Every line is its own block.** Markdown proper joins neighbouring lines into a
+  paragraph; on a note that reads as the app eating line breaks. And nothing is an
+  error — "5 * 3", `user_first_name` and an unclosed backtick stay what was typed.
+- **A run's text is an unbroken piece of the source**, and `MarkdownRun.SourceStart`
+  says where. That is the whole of how a click on formatted text puts the caret on
+  the same character of the Markdown (`NoteLine.SourceIndexAt`). A theory asserts
+  it over mixed content; a new inline construct that breaks it breaks clicking.
+- **Checkboxes, bullets and links are characters in the text, not controls in it**,
+  so a line wraps as one and a press is answered by hit-testing the line's
+  `TextLayout`. `NoteViewModel.PressAsync` decides what a character does;
+  `FormattedNote` does not know what a checkbox is. `ToggleTask` checks its position
+  against a fresh parse, so a stale one flips nothing.
+- **Editing state is never stored**, and switching in and out writes nothing. An
+  empty note always shows the editor, which is what makes a new note ready to type.
+- **Leaving the editor renders it — except into its own Cut/Copy/Paste menu**, or
+  the editor is swapped out from under a paste. The test for that right-clicks for
+  real: opening the flyout with `ShowAt` does not move focus, and the test passed
+  with the guard deleted. Escape ends editing before a second one closes the note;
+  Enter on a formatted note starts editing.
+- **`FormattedNote` needs its transparent background** — without one, presses on a
+  line fell through to the paper behind and opened the editor at the end — and is
+  only as tall as its text. The paper around it is the `ScrollViewer`'s, whose own
+  press handler edits at the end. Sizing the note to fill the viewport instead made
+  it overflow by the padding, so every note scrolled.
+- **A hidden `ScrollViewer` does not lay out its content**, which then still reports
+  `IsVisible` and even `IsEffectivelyVisible`. Tests ask the scroll viewer. Several
+  "stays formatted" assertions were passing against nothing before that.
+- **The link bar only shows while editing.** Formatted, links are clickable where
+  they are written; the bar is for when the editor's plain text is in the way.
 
 **Anything that ticks is derived, never stored.** A countdown persists the instant
 it started and the time banked before that, and computes what to display from

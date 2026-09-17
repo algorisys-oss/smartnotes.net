@@ -41,6 +41,30 @@ public partial class NoteWindow : Window
             grip.PointerPressed += OnResizeGripPressed;
         }
 
+        var formatted = this.FindControl<FormattedNote>("Formatted");
+        if (formatted is not null)
+        {
+            formatted.LinePressed += (_, e) => _ = _note?.PressAsync(e.Line, e.DrawnIndex, e.Trailing);
+        }
+
+        // Presses on the paper around the text: a line would have handled its own.
+        this.FindControl<ScrollViewer>("FormattedScroll")?.AddHandler(
+            PointerPressedEvent,
+            (_, e) =>
+            {
+                if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+                {
+                    e.Handled = true;
+                    _note?.BeginEditingAtEnd();
+                }
+            });
+
+        var body = this.FindControl<TextBox>("Body");
+        if (body is not null)
+        {
+            body.LostFocus += OnBodyLostFocus;
+        }
+
         var titleBox = this.FindControl<TextBox>("TitleBox");
         if (titleBox is not null)
         {
@@ -56,7 +80,13 @@ public partial class NoteWindow : Window
         // Which note the keystrokes are going into. With several open there was
         // nothing saying so.
         Activated += (_, _) => MarkActive(true);
-        Deactivated += (_, _) => MarkActive(false);
+        Deactivated += (_, _) =>
+        {
+            MarkActive(false);
+
+            // Clicking another window is the most common way to finish typing.
+            _note?.EndEditing();
+        };
         MarkActive(false);
     }
 
@@ -66,8 +96,14 @@ public partial class NoteWindow : Window
     {
         ArgumentNullException.ThrowIfNull(note);
 
+        if (_note is not null)
+        {
+            _note.PropertyChanged -= OnNoteChanged;
+        }
+
         _note = note;
         DataContext = note;
+        note.PropertyChanged += OnNoteChanged;
 
         _applyingGeometry = true;
         try
@@ -95,6 +131,25 @@ public partial class NoteWindow : Window
 
         if (e.Handled)
         {
+            return;
+        }
+
+        // Escape while typing puts the note back to formatted; a second one closes
+        // it. Closing a note mid-sentence on the key that also means "stop
+        // editing" would be a surprise every time.
+        if (e.Key == Key.Escape && _note is { IsEditing: true, ShowsEditor: true } editing
+            && !string.IsNullOrWhiteSpace(editing.Content))
+        {
+            e.Handled = true;
+            editing.EndEditing();
+            Focus();
+            return;
+        }
+
+        if (e.Key == Key.Enter && _note is { ShowsEditor: false } resting)
+        {
+            e.Handled = true;
+            resting.BeginEditingAtEnd();
             return;
         }
 
@@ -151,6 +206,48 @@ public partial class NoteWindow : Window
 
         _closeConfirmed = true;
         Close();
+    }
+
+    /// <summary>
+    /// Opening the editor has to put the keyboard in it, at the caret the press
+    /// asked for. Posted rather than done here, because the editor only becomes
+    /// visible once the binding has heard the same change, and a hidden control
+    /// cannot take focus.
+    /// </summary>
+    private void OnNoteChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(NoteViewModel.IsEditing) || _note is not { IsEditing: true } note)
+        {
+            return;
+        }
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            var body = this.FindControl<TextBox>("Body");
+            if (body is null || !note.IsEditing)
+            {
+                return;
+            }
+
+            body.Focus();
+            body.CaretIndex = note.EditCaret;
+            body.SelectionStart = body.SelectionEnd = note.EditCaret;
+        });
+    }
+
+    /// <summary>
+    /// Leaving the editor shows the note formatted again - unless the keyboard only
+    /// went into the editor's own Cut/Copy/Paste menu, which would otherwise swap the
+    /// editor out from under the paste.
+    /// </summary>
+    private void OnBodyLostFocus(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is TextBox { ContextFlyout: Avalonia.Controls.Primitives.PopupFlyoutBase { IsOpen: true } })
+        {
+            return;
+        }
+
+        _note?.EndEditing();
     }
 
     /// <summary>Whether this is the note with the keyboard.</summary>
@@ -219,6 +316,30 @@ public partial class NoteWindow : Window
 
     private void BeginEditingTitle()
     {
+        var formatted = this.FindControl<FormattedNote>("Formatted");
+        if (formatted is not null)
+        {
+            formatted.LinePressed += (_, e) => _ = _note?.PressAsync(e.Line, e.DrawnIndex, e.Trailing);
+        }
+
+        // Presses on the paper around the text: a line would have handled its own.
+        this.FindControl<ScrollViewer>("FormattedScroll")?.AddHandler(
+            PointerPressedEvent,
+            (_, e) =>
+            {
+                if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+                {
+                    e.Handled = true;
+                    _note?.BeginEditingAtEnd();
+                }
+            });
+
+        var body = this.FindControl<TextBox>("Body");
+        if (body is not null)
+        {
+            body.LostFocus += OnBodyLostFocus;
+        }
+
         var titleBox = this.FindControl<TextBox>("TitleBox");
         if (titleBox is null)
         {

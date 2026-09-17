@@ -3,6 +3,7 @@
         xmlns:app="clr-namespace:YappyNotes.App"
         xmlns:vm="clr-namespace:YappyNotes.ViewModels;assembly=YappyNotes.ViewModels"
         xmlns:core="clr-namespace:YappyNotes.Core;assembly=YappyNotes.Core"
+        xmlns:views="clr-namespace:YappyNotes.App.Views"
         x:Class="YappyNotes.App.Views.NoteWindow"
         x:DataType="vm:NoteViewModel"
         Title="{Binding Title}"
@@ -326,8 +327,29 @@
             </Grid>
         </Border>
 
+        <!-- The note at rest: its Markdown drawn formatted. A press on it either
+             does something (a box, a link) or opens the editor below with the
+             caret where the press landed. -->
+        <!-- A press on a line is answered by the formatted note; a press anywhere
+             else on this paper - below a short note, in the padding - reaches the
+             scroll viewer and opens the editor at the end. Transparent rather than
+             unset, or those presses would fall through to nothing. -->
+        <ScrollViewer Grid.Row="2"
+                      x:Name="FormattedScroll"
+                      IsVisible="{Binding !ShowsEditor}"
+                      Background="Transparent"
+                      Padding="8"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <views:FormattedNote x:Name="Formatted"
+                                 Lines="{Binding Lines}"
+                                 VerticalAlignment="Top"
+                                 TextElement.Foreground="#1a1a1a" />
+        </ScrollViewer>
+
         <TextBox Grid.Row="2"
                  x:Name="Body"
+                 IsVisible="{Binding ShowsEditor}"
                  Text="{Binding Content}"
                  PlaceholderText="Write something…"
                  AcceptsReturn="True"
@@ -339,12 +361,13 @@
                  Padding="8"
                  VerticalAlignment="Stretch" />
 
-        <!-- Links live beside the note, not inside it: the body is an editable
-             TextBox, which draws plain text and nothing else. Only allow-listed
-             schemes ever reach here. -->
+        <!-- While editing, the Markdown editor draws plain text and a link in it
+             cannot be clicked, so the links are offered here instead. Formatted,
+             they are clickable where they are written, and this stays hidden.
+             Only allow-listed schemes ever reach here. -->
         <ItemsControl Grid.Row="3"
                       x:Name="LinkBar"
-                      IsVisible="{Binding HasLinks}"
+                      IsVisible="{Binding ShowsLinkBar}"
                       ItemsSource="{Binding Links}"
                       Margin="6,0,22,6">
             <ItemsControl.ItemsPanel>

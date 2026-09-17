@@ -1633,9 +1633,8 @@ scripts/dev-start.sh --sandbox                            # a throwaway database
 
 <p>
   Milestone 6 is two things rather than the nine it used to be:
-  <strong>a tray icon</strong>, which is in, and <strong>rich text</strong>, which
-  is scoped and not started.
-  The rich-text argument is the one worth reading before anyone starts, because it
+  <strong>a tray icon</strong> and <strong>rich text</strong>, and both are in.
+  The rich-text argument is the one worth reading, because it
   is a storage decision wearing a rendering costume — Markdown kept in
   <code>Content</code> means no migration (<code>Content</code> is already
   <code>TEXT</code>), <code>LIKE</code> search keeps working, export stays nearly
@@ -1655,12 +1654,11 @@ scripts/dev-start.sh --sandbox                            # a throwaway database
 </p>
 
 <p>
-  Links are a half-exception worth explaining, because the shape of the compromise
-  is instructive. Bare URLs in a note's text are found by <code>LinkScanner</code>
-  in Core and offered <em>beside</em> the note rather than rendered inside it: the
-  body is an editable <code>TextBox</code>, which draws plain text and nothing
-  else, and making it render runs of formatting is a far larger change than links
-  are worth. Labelled links are Markdown, and Markdown is Milestone 6.
+  Links came before rich text, and were offered <em>beside</em> the note while the
+  body was only an editable <code>TextBox</code>. Now the note is drawn formatted,
+  a link — bare, found by <code>LinkScanner</code>, or labelled Markdown — is
+  clickable where it is written, and the bar beside the note is left for while you
+  are editing the Markdown and cannot click one.
 </p>
 
 <p>
