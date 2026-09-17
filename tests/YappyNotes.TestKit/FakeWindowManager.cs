@@ -36,6 +36,27 @@ public sealed class FakeWindowManager : IWindowManager
 
     public void ShowSettings() => SettingsShown++;
 
+    /// <summary>
+    /// Where <see cref="ChangeNoteAsync"/> writes, when a test wants the change to
+    /// land. Left null, changes are only recorded.
+    /// </summary>
+    public YappyNotes.Core.NoteService? Notes { get; init; }
+
+    public List<Guid> Changed { get; } = [];
+
+    public async Task ChangeNoteAsync(Guid noteId, Func<string, string> changeContent)
+    {
+        Changed.Add(noteId);
+
+        if (Notes is null || (await Notes.GetActiveAsync()).FirstOrDefault(note => note.Id == noteId) is not { } note)
+        {
+            return;
+        }
+
+        note.Content = changeContent(note.Content);
+        await Notes.SaveAsync(note);
+    }
+
     public int ManagerShown { get; private set; }
 
     public void ShowManager() => ManagerShown++;

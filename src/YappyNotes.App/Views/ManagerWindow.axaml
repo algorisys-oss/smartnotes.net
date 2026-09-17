@@ -31,14 +31,24 @@
                      PlaceholderText="Search notes…"
                      Padding="8,6" />
 
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto">
                 <ToggleSwitch Grid.Column="0"
                               x:Name="ArchiveToggle"
                               IsChecked="{Binding ShowingArchive}"
                               OnContent="Archive"
                               OffContent="Desktop" />
 
-                <Button Grid.Column="1"
+                <!-- Every open to-do from every note, instead of the notes. -->
+                <ToggleButton Grid.Column="1"
+                              x:Name="TodosToggle"
+                              IsChecked="{Binding ShowingTodos}"
+                              Content="To-dos"
+                              ToolTip.Tip="Every open to-do, from every note"
+                              Padding="10,4"
+                              Margin="0,0,6,0"
+                              VerticalAlignment="Center" />
+
+                <Button Grid.Column="2"
                         x:Name="SettingsButton"
                         Command="{Binding OpenSettingsCommand}"
                         ToolTip.Tip="Settings"
@@ -79,7 +89,59 @@
                    TextAlignment="Center"
                    Opacity="0.5" />
 
+        <!-- The to-do view: each note's open to-dos on a scrap of its paper.
+             Ticking a box goes through the view-model to the window manager, so a
+             note open on the desktop is changed through its own window. -->
+        <ScrollViewer DockPanel.Dock="Top"
+                      IsVisible="{Binding ShowingTodos}"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl x:Name="TodoList"
+                          Margin="8,0,8,0"
+                          ItemsSource="{Binding TodoGroups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TodoGroup">
+                        <!-- Light, like a note row: pastel paper under the app's dark
+                             variant draws pale text nobody can read. -->
+                        <ThemeVariantScope RequestedThemeVariant="Light">
+                            <Border Margin="0,3"
+                                    Padding="10,6,10,8"
+                                    CornerRadius="4"
+                                    Background="{Binding Color, Converter={x:Static app:NoteBrushes.Paper}}"
+                                    BorderBrush="#22000000"
+                                    BorderThickness="1">
+                                <StackPanel Spacing="1">
+                                    <Button Content="{Binding Title}"
+                                            ToolTip.Tip="Open this note"
+                                            FontWeight="SemiBold"
+                                            Foreground="#1A1A1A"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Padding="0,2"
+                                            Command="{Binding $parent[Window].((vm:ManagerViewModel)DataContext).OpenTodoNoteCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:TodoEntry">
+                                                <CheckBox Content="{Binding Text}"
+                                                          Foreground="#1A1A1A"
+                                                          FontSize="13"
+                                                          MinHeight="26"
+                                                          Margin="{Binding Level, Converter={x:Static app:IndentMargin.Instance}}"
+                                                          Command="{Binding $parent[Window].((vm:ManagerViewModel)DataContext).TickTodoCommand}"
+                                                          CommandParameter="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </ThemeVariantScope>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
         <ListBox x:Name="NoteList"
+                 IsVisible="{Binding !ShowingTodos}"
                  Margin="8,0,8,0"
                  Background="Transparent"
                  BorderThickness="0"

@@ -3,6 +3,9 @@ namespace YappyNotes.Core;
 /// <summary>How many of a note's to-dos are ticked, out of how many there are.</summary>
 public sealed record TodoProgress(int Done, int Total);
 
+/// <summary>A to-do read out of a note: where its box is, its words, and its indent.</summary>
+public sealed record TodoItem(int CheckMarkIndex, string Text, int Level);
+
 /// <summary>
 /// Keeping a checklist going without typing its Markdown.
 /// </summary>
@@ -96,6 +99,44 @@ public static class TodoList
 
         return content.EndsWith('\n') ? content + item : content + lineBreak + item;
     }
+
+    /// <summary>
+    /// The note's unticked to-dos, as plain words - for a list somewhere other than
+    /// the note, where the Markdown around them would only be noise.
+    /// </summary>
+    public static IReadOnlyList<TodoItem> OpenItems(string content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        return [.. NoteMarkdown.Parse(content)
+            .Where(block => block is { Kind: MarkdownBlockKind.Task, IsDone: false })
+            .Select(ItemOf)];
+    }
+
+    /// <summary>
+    /// Ticks this item, if it is still in the note unticked where it was found.
+    /// </summary>
+    /// <remarks>
+    /// The item comes from a list that can be older than the note. If the note has
+    /// been edited since, a different item can sit where this one's box was, and
+    /// ticking that one instead would be quietly wrong - so the text has to match,
+    /// not just the position.
+    /// </remarks>
+    public static string Tick(string content, TodoItem item)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(item);
+
+        var stillThere = NoteMarkdown.Parse(content).Any(block =>
+            block is { Kind: MarkdownBlockKind.Task, IsDone: false }
+            && block.CheckMarkIndex == item.CheckMarkIndex
+            && ItemOf(block).Text == item.Text);
+
+        return stillThere ? NoteMarkdown.ToggleTask(content, item.CheckMarkIndex) : content;
+    }
+
+    private static TodoItem ItemOf(MarkdownBlock block)
+        => new(block.CheckMarkIndex, string.Concat(block.Runs.Select(run => run.Text)).Trim(), block.Level);
 
     /// <summary>How many of the note's to-dos are ticked, out of how many.</summary>
     public static TodoProgress Progress(string content)

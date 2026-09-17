@@ -45,7 +45,8 @@ closed, and the repository contract answered twice.
 > A note's text is Markdown, drawn formatted: headings, bullets, checklists you
 > tick in place, add to from a field under the list (or with Enter in the
 > editor), and clear when done — with an undo, and a "2 of 5 done" count on the
-> note and in the manager — bold, italic, `code`, and links — bare or labelled,
+> note and in the manager, whose To-dos view lists every open item from every note
+> and ticks them from there — bold, italic, `code`, and links — bare or labelled,
 > http/https/mailto only — that open where they are written. Click the text to
 > edit the Markdown, with the caret where you clicked, and Ctrl+B or Ctrl+I to
 > bold or italicise a selection; click away and it is formatted again. It is still stored as the plain text you typed.
@@ -57,7 +58,7 @@ closed, and the repository contract answered twice.
 > is turned off, and starting it while it runs brings the running copy forward
 > rather than opening a second.
 >
-> 616 green tests. Start at [LOOP.md](LOOP.md).
+> 636 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 
