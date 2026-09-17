@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using YappyNotes.Core;
 using YappyNotes.ViewModels;
 
 namespace YappyNotes.App.Views;
@@ -134,6 +135,15 @@ public partial class NoteWindow : Window
             return;
         }
 
+        if (e.KeyModifiers == KeyModifiers.Control && e.Key is Key.B or Key.I
+            && _note is { IsEditing: true } typing
+            && this.FindControl<TextBox>("Body") is { IsFocused: true } body)
+        {
+            e.Handled = true;
+            ApplyEmphasis(typing, body, e.Key == Key.B ? Emphasis.Bold : Emphasis.Italic);
+            return;
+        }
+
         // Escape while typing puts the note back to formatted; a second one closes
         // it. Closing a note mid-sentence on the key that also means "stop
         // editing" would be a surprise every time.
@@ -158,6 +168,29 @@ public partial class NoteWindow : Window
             e.Handled = true;
             Close();
         }
+    }
+
+    /// <summary>
+    /// Ctrl+B or Ctrl+I: the view-model rewrites the Markdown, and the same text is
+    /// selected again afterwards so a second shortcut - or a second press to undo
+    /// the first - acts on it.
+    /// </summary>
+    /// <remarks>
+    /// The selection is put back after the new text has reached the editor. The
+    /// binding writes the text synchronously when the view-model's content changes,
+    /// and replacing a TextBox's text resets its selection, so setting it any earlier
+    /// is undone.
+    /// </remarks>
+    private static void ApplyEmphasis(NoteViewModel note, TextBox body, Emphasis emphasis)
+    {
+        var (start, end) = note.ToggleEmphasis(emphasis, body.SelectionStart, body.SelectionEnd);
+
+
+        // Caret first: in Avalonia 12, setting it clears the selection, and set last
+        // it left the second press with nothing selected to unbold.
+        body.CaretIndex = end;
+        body.SelectionStart = start;
+        body.SelectionEnd = end;
     }
 
     protected override void OnOpened(EventArgs e)

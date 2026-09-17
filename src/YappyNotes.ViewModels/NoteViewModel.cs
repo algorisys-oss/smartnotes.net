@@ -159,6 +159,26 @@ public sealed partial class NoteViewModel : ObservableObject
 
     public void EndEditing() => SetEditing(false);
 
+    /// <summary>
+    /// Ctrl+B or Ctrl+I in the editor: wraps the selection in markers, or takes them
+    /// off, and saves the way typing does.
+    /// </summary>
+    /// <returns>
+    /// What the editor should select afterwards - the same text, which has moved by
+    /// the width of whatever markers went in or came out.
+    /// </returns>
+    public (int Start, int End) ToggleEmphasis(Emphasis emphasis, int selectionStart, int selectionEnd)
+    {
+        if (!IsEditing)
+        {
+            return (selectionStart, selectionEnd);
+        }
+
+        var edit = MarkdownEmphasis.Toggle(_note.Content, selectionStart, selectionEnd, emphasis);
+        Content = edit.Content;
+        return (edit.SelectionStart, edit.SelectionEnd);
+    }
+
     private void BeginEditing(int caret)
     {
         EditCaret = Math.Clamp(caret, 0, _note.Content.Length);

@@ -45,8 +45,8 @@ closed, and the repository contract answered twice.
 > A note's text is Markdown, drawn formatted: headings, bullets, checklists you
 > tick in place, bold, italic, `code`, and links — bare or labelled,
 > http/https/mailto only — that open where they are written. Click the text to
-> edit the Markdown, with the caret where you clicked; click away and it is
-> formatted again. It is still stored as the plain text you typed.
+> edit the Markdown, with the caret where you clicked, and Ctrl+B or Ctrl+I to
+> bold or italicise a selection; click away and it is formatted again. It is still stored as the plain text you typed.
 >
 > The app lives in the tray: closing the manager leaves it running, and the tray
 > menu makes a new note, shows or hides every note, reopens the manager and quits.
@@ -55,7 +55,7 @@ closed, and the repository contract answered twice.
 > is turned off, and starting it while it runs brings the running copy forward
 > rather than opening a second.
 >
-> 526 green tests. Start at [LOOP.md](LOOP.md).
+> 553 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 

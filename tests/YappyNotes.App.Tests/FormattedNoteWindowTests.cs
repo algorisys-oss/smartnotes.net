@@ -271,4 +271,56 @@ public class FormattedNoteWindowTests
         Assert.True(window.FindControl<Border>("NoteChrome")!.ContextMenu!.IsOpen);
         Assert.True(ShowsFormatted(window));
     }
+
+    private static TextBox EditingWithSelected(NoteWindow window, int start, int end)
+    {
+        NoteOf(window).BeginEditingAtEnd();
+        Dispatcher.UIThread.RunJobs();
+
+        var editor = Editor(window);
+        Assert.True(editor.IsFocused, "the editor never took the keyboard, so no shortcut could reach it");
+        editor.SelectionStart = start;
+        editor.SelectionEnd = end;
+        return editor;
+    }
+
+    [AvaloniaFact]
+    public void CtrlB_WithAWordSelected_BoldsItAndKeepsTheWordSelected()
+    {
+        var window = OpenWith("buy milk now");
+        var editor = EditingWithSelected(window, 4, 8);
+
+        window.KeyPress(Key.B, RawInputModifiers.Control, PhysicalKey.B, null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("buy **milk** now", editor.Text);
+        Assert.Equal((6, 10), (editor.SelectionStart, editor.SelectionEnd));
+    }
+
+    [AvaloniaFact]
+    public void CtrlI_WithAWordSelected_MakesItItalic()
+    {
+        var window = OpenWith("buy milk now");
+        var editor = EditingWithSelected(window, 4, 8);
+
+        window.KeyPress(Key.I, RawInputModifiers.Control, PhysicalKey.I, null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("buy *milk* now", editor.Text);
+    }
+
+    [AvaloniaFact]
+    public void CtrlB_PressedTwice_LeavesTheTextAsItWas()
+    {
+        var window = OpenWith("buy milk now");
+        var editor = EditingWithSelected(window, 4, 8);
+
+        window.KeyPress(Key.B, RawInputModifiers.Control, PhysicalKey.B, null);
+        Dispatcher.UIThread.RunJobs();
+        window.KeyPress(Key.B, RawInputModifiers.Control, PhysicalKey.B, null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("buy milk now", editor.Text);
+        Assert.Equal((4, 8), (editor.SelectionStart, editor.SelectionEnd));
+    }
 }
