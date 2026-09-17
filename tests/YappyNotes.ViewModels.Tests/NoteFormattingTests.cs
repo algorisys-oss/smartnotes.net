@@ -279,4 +279,33 @@ public class NoteFormattingTests
 
         Assert.False(note.ShowsLinkBar);
     }
+
+    [Fact]
+    public async Task ToggleEmphasis_WhileEditing_ChangesTheMarkdownAndSaysWhatToSelect()
+    {
+        var note = await NoteSayingAsync("buy milk now");
+        note.BeginEditingAtEnd();
+
+        var selection = note.ToggleEmphasis(Emphasis.Bold, 4, 8);
+        await SettleAsync();
+
+        Assert.Equal("buy **milk** now", note.Content);
+        Assert.Equal((6, 10), selection);
+        Assert.Equal("buy **milk** now", (await _repository.GetByIdAsync(note.Id, Token))!.Content);
+    }
+
+    /// <summary>
+    /// A shortcut acts on a selection, and a formatted note has none: nothing is
+    /// selected in it that the reader can see.
+    /// </summary>
+    [Fact]
+    public async Task ToggleEmphasis_WhileFormatted_ChangesNothing()
+    {
+        var note = await NoteSayingAsync("buy milk now");
+
+        var selection = note.ToggleEmphasis(Emphasis.Bold, 4, 8);
+
+        Assert.Equal("buy milk now", note.Content);
+        Assert.Equal((4, 8), selection);
+    }
 }

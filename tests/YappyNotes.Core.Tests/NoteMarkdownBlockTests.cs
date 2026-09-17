@@ -156,4 +156,18 @@ public class NoteMarkdownBlockTests
         // formatted.
         Assert.Equal(MarkdownBlockKind.Paragraph, Single("1. milk").Kind);
     }
+
+    /// <summary>
+    /// Where a line's own text begins, past any heading, bullet or checkbox marker -
+    /// so an edit to the text can leave the marker alone.
+    /// </summary>
+    [Theory]
+    [InlineData("milk", 0)]
+    [InlineData("## milk", 3)]
+    [InlineData("- milk", 2)]
+    [InlineData("  - [x] **milk**", 8)]
+    public void Parse_ALine_KnowsWhereItsTextStarts(string line, int textStart)
+    {
+        Assert.Equal(textStart, Single(line).TextStart);
+    }
 }

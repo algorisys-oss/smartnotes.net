@@ -39,6 +39,10 @@ public sealed record MarkdownRun(string Text, int SourceStart, RunStyle Style = 
 /// <param name="SourceStart">Where the line starts in the note's content.</param>
 /// <param name="SourceLength">The line's length, without its line break.</param>
 /// <param name="Level">A heading's level, or a list item's depth of indentation.</param>
+/// <param name="TextStart">
+/// Where the line's own text begins in the note, past any heading, bullet or
+/// checkbox marker - so an edit to the text can leave the marker alone.
+/// </param>
 /// <param name="CheckMarkIndex">
 /// For a task, the index of the character between its brackets - what
 /// <see cref="NoteMarkdown.ToggleTask"/> rewrites. -1 for anything else.
@@ -50,7 +54,8 @@ public sealed record MarkdownBlock(
     int SourceLength,
     int Level = 0,
     bool IsDone = false,
-    int CheckMarkIndex = -1);
+    int CheckMarkIndex = -1,
+    int TextStart = 0);
 
 /// <summary>
 /// The small piece of Markdown a note understands: headings, bullets, checklists,
@@ -138,7 +143,7 @@ public static class NoteMarkdown
 
         if (line.IsWhiteSpace())
         {
-            return new MarkdownBlock(MarkdownBlockKind.Blank, [], start, length);
+            return new MarkdownBlock(MarkdownBlockKind.Blank, [], start, length, TextStart: start);
         }
 
         var hashes = CountLeading(line, '#');
@@ -176,7 +181,7 @@ public static class NoteMarkdown
         var runs = new List<MarkdownRun>();
         ParseInlines(content, textStart, lineStart + lineLength, RunStyle.None, runs);
 
-        return new MarkdownBlock(kind, runs, lineStart, lineLength, level);
+        return new MarkdownBlock(kind, runs, lineStart, lineLength, level, TextStart: textStart);
     }
 
     /// <summary>

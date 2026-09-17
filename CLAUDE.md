@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 526 green tests.
+through Velopack. 553 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -306,6 +306,12 @@ to the `TextBox` editor. Things about it that were learned rather than planned:
 - **A hidden `ScrollViewer` does not lay out its content**, which then still reports
   `IsVisible` and even `IsEffectivelyVisible`. Tests ask the scroll viewer. Several
   "stays formatted" assertions were passing against nothing before that.
+- **Ctrl+B and Ctrl+I rewrite the Markdown in Core** (`MarkdownEmphasis`), toggling
+  asterisks only, line by line from each line's `TextStart` so a checklist's box
+  stays outside the markers, and trimmed of edge spaces because `**milk **` is not
+  bold. The window then restores the selection — caret first, because setting
+  `CaretIndex` in Avalonia 12 clears the selection, and set last it left a second
+  press nothing to unbold.
 - **The link bar only shows while editing.** Formatted, links are clickable where
   they are written; the bar is for when the editor's plain text is in the way.
 
