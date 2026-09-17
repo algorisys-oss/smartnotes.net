@@ -2,6 +2,41 @@
 
 What changed in each release, and why — not a list of files.
 
+## 0.2.0
+
+The first stable release with a tray and self-updating installers. Everything in
+0.2.0-beta.1 is here, and the beta went out on real Windows, macOS and Linux
+runners first. If you are coming from 0.1.0, read that section below too; this one
+is what is new since the beta.
+
+**It starts when you log in.** An installed copy now adds itself to your login
+items the first time it runs, so the notes that were on your desktop are back
+after a restart without you having to remember to open anything. Turn it off in
+Settings, and it takes itself out again. Only an installed copy does this — an
+unpacked `.tar.gz` or `.zip` never touches your login items, and the checkbox is
+greyed out there. On Linux this is an autostart entry that goes quiet on its own if
+you delete the AppImage.
+
+**Starting it again brings it forward instead of opening a second copy.**
+Double-clicking the launcher while YappyNotes is already running used to start
+another one, and two copies could quietly write over each other's notes — moving
+a note in one saved that copy's older text over what you had just typed in the
+other. Now the second start shows your notes and the manager in the copy that is
+already running, and leaves. That also covers a Linux desktop with no tray icon:
+starting the app again is how you get the manager back.
+
+**Changing a note's colour is where you would look for it.** A small dot in the
+note's title strip, painted the note's colour, opens a row of swatches with the
+current one marked. The colours used to be only in a right-click menu that
+right-clicking the note's text never opened.
+
+Still true from the beta: the installers are not signed, so SmartScreen and
+Gatekeeper warn the first time, and an update downloads the whole release. Start
+at login has been watched working on Linux; on Windows and macOS it is tested code
+that nobody has yet logged in to see.
+
+441 tests.
+
 ## 0.2.0-beta.1
 
 A prerelease, mainly to prove the new release pipeline on real Windows and macOS

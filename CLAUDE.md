@@ -34,8 +34,9 @@ recolourable windows, autosaved and restored; the manager lists, searches and
 archives; there is a settings window, keyboard shortcuts, CI and packaging for
 six runtime identifiers. On top of that, a note can carry a stream timer that
 counts down or up, and the links in its text are offered beside it. The app
-lives in the tray and outlives its windows, and an installed copy updates itself
-from GitHub releases through Velopack. 394 green tests.
+lives in the tray and outlives its windows, only one copy runs per notes folder,
+and an installed copy starts at login and updates itself from GitHub releases
+through Velopack. 441 green tests.
 
 **What is left of Milestone 6 is rich text**, and it is a separate session's
 work. `docs/plan.md` has the scope, the recommended approach and what was checked

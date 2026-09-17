@@ -46,9 +46,11 @@ closed, and the repository contract answered twice.
 > The app lives in the tray: closing the manager leaves it running, and the tray
 > menu makes a new note, shows or hides every note, reopens the manager and quits.
 > An installed copy keeps itself up to date: it checks GitHub on start, downloads
-> a newer release, and offers to restart into it.
+> a newer release, and offers to restart into it. It starts at login unless that
+> is turned off, and starting it while it runs brings the running copy forward
+> rather than opening a second.
 >
-> 394 green tests. Start at [LOOP.md](LOOP.md).
+> 441 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 
