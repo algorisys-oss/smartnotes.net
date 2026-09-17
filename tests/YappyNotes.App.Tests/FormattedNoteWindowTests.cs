@@ -336,4 +336,23 @@ public class FormattedNoteWindowTests
 
         Assert.Equal(DueBrushes.For(state), drawn.Foreground);
     }
+
+    [AvaloniaFact]
+    public void NewNote_TypingSeveralLetters_KeepsThemAllInTheEditor()
+    {
+        var window = OpenWith(string.Empty);
+        var editor = Editor(window);
+        Assert.True(editor.IsFocused, "a new note did not open with the keyboard in it");
+
+        foreach (var letter in "Shop")
+        {
+            window.KeyTextInput(letter.ToString());
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(editor.IsFocused, $"after typing '{letter}' the editor had lost the keyboard");
+        }
+
+        Assert.Equal("Shop", editor.Text);
+        Assert.True(Editor(window).IsEffectivelyVisible);
+        Assert.Equal(4, editor.CaretIndex);
+    }
 }

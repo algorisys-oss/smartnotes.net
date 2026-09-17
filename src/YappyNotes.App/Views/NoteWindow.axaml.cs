@@ -328,6 +328,13 @@ public partial class NoteWindow : Window
                 return;
             }
 
+            // Already typing in it - a new note that has just become "editing" -
+            // and the caret is where the typing put it. Moving it would jump it.
+            if (body.IsFocused)
+            {
+                return;
+            }
+
             body.Focus();
             body.CaretIndex = note.EditCaret;
             body.SelectionStart = body.SelectionEnd = note.EditCaret;

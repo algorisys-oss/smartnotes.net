@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 676 green tests.
+through Velopack. 681 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -313,7 +313,11 @@ to the `TextBox` editor. Things about it that were learned rather than planned:
   empty note shows the editor, which is what makes a new note ready to type —
   except while a to-do is being added, whose new line lives in the formatted note.
   Without that exception the line was hidden, the keyboard stayed in the editor,
-  and the first letter typed became the note's text.
+  and the first letter typed became the note's text. And the first letter typed
+  *into* that empty editor makes the note editing (the `Content` setter), or it
+  turned formatted under the typing and took the keyboard — in every new note,
+  from rich text until it was reported. Undo of a clear that emptied a note puts
+  the text back before forgetting the clear, so it is not taken for typing.
 - **Leaving the editor renders it — except into its own Cut/Copy/Paste menu**, or
   the editor is swapped out from under a paste. The test for that right-clicks for
   real: opening the flyout with `ShowAt` does not move focus, and the test passed
