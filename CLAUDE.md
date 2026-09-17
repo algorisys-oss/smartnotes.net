@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 553 green tests.
+through Velopack. 556 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -251,6 +251,13 @@ those do not fit beside a count: they were clipped to unreadable stumps when the
 tried. A flyout is not bound by the note's width, so it works at any size. Do not
 move a setting back onto the bar; `TimerBar_AtAnyNoteWidth_KeepsTheCountAndItsButtonsWhole`
 and `TimerBar_HasNothingLeftToClip` are what hold that line.
+
+**The timer bar's icons are drawn, not typed.** Every transport key is the
+`Button.transport` style — one size — holding a `Path` in the same 10×10 box.
+Font glyphs (⏸ ↻ ⏹ …) each brought their own width and baseline, and a fallback
+font's where the main one lacked them, so the keys came out four sizes in real
+use. The headless stand-in font measures all glyphs alike, so a size test cannot
+catch that; `TimerBar_Icons_AreDrawnNotTyped` is what holds it.
 
 **The timer's settings are locked while it is running** (`CanEdit` disables the
 `…` button). Moving the finish line halfway through a countdown is a way to be
