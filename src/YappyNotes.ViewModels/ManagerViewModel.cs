@@ -44,11 +44,63 @@ public sealed partial class ManagerViewModel : ObservableObject
     // against the previous value - a list one keystroke behind what was typed.
     partial void OnSearchTextChanged(string value) => SearchCommand.Execute(null);
 
-    partial void OnShowingArchiveChanged(bool value) => SearchCommand.Execute(null);
+    partial void OnShowingArchiveChanged(bool value)
+    {
+        if (value)
+        {
+            ShowingTodos = false;
+        }
 
-    public bool IsEmpty => Items.Count == 0;
+        SearchCommand.Execute(null);
+    }
 
-    public string EmptyMessage => ShowingArchive
+    /// <summary>
+    /// Whether the manager shows every open to-do, grouped by note, instead of the
+    /// notes themselves. One view at a time: turning this on leaves the archive, and
+    /// the archive's to-dos are not listed - they are filed away with their notes.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool ShowingTodos { get; set; }
+
+    /// <summary>The open to-dos, one group per note, newest note first.</summary>
+    public ObservableCollection<TodoGroup> TodoGroups { get; } = [];
+
+    partial void OnShowingTodosChanged(bool value)
+    {
+        if (value)
+        {
+            ShowingArchive = false;
+        }
+
+        SearchCommand.Execute(null);
+    }
+
+    /// <summary>
+    /// Ticks a to-do in its note, from here. Through the window manager, never
+    /// around it: a note open on the desktop has an autosave that would write its
+    /// own copy over a tick made straight in storage.
+    /// </summary>
+    [RelayCommand]
+    public async Task TickTodoAsync(TodoEntry? entry)
+    {
+        if (entry is null)
+        {
+            return;
+        }
+
+        await _windows.ChangeNoteAsync(entry.NoteId, content => TodoList.Tick(content, entry.Item));
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    public Task OpenTodoNoteAsync(TodoGroup? group)
+        => group is null ? Task.CompletedTask : _windows.ShowNoteAsync(group.NoteId);
+
+    public bool IsEmpty => ShowingTodos ? TodoGroups.Count == 0 : Items.Count == 0;
+
+    public string EmptyMessage => ShowingTodos
+        ? string.IsNullOrWhiteSpace(SearchText) ? "Nothing left to do." : "No to-dos match that."
+        : ShowingArchive
         ? "Nothing archived yet."
         : string.IsNullOrWhiteSpace(SearchText)
             ? "No notes yet. Make one."
@@ -67,6 +119,8 @@ public sealed partial class ManagerViewModel : ObservableObject
         {
             Items.Add(NoteListItem.From(note));
         }
+
+        await RefreshTodosAsync(cancellationToken);
 
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(EmptyMessage));
@@ -135,6 +189,34 @@ public sealed partial class ManagerViewModel : ObservableObject
     }
 
     private static bool CanDeleteForever(NoteListItem? item) => item?.IsArchived ?? false;
+
+    private async Task RefreshTodosAsync(CancellationToken cancellationToken)
+    {
+        TodoGroups.Clear();
+
+        if (!ShowingTodos)
+        {
+            return;
+        }
+
+        var search = SearchText.Trim();
+
+        foreach (var note in (await _notes.GetActiveAsync(cancellationToken)).OrderByDescending(note => note.ModifiedUtc))
+        {
+            var title = NoteListItem.From(note).DisplayTitle;
+            var titleMatches = search.Length > 0 && title.Contains(search, StringComparison.CurrentCultureIgnoreCase);
+
+            var entries = TodoList.OpenItems(note.Content)
+                .Where(item => search.Length == 0 || titleMatches || item.Text.Contains(search, StringComparison.CurrentCultureIgnoreCase))
+                .Select(item => new TodoEntry(note.Id, item))
+                .ToList();
+
+            if (entries.Count > 0)
+            {
+                TodoGroups.Add(new TodoGroup(note.Id, title, note.Color, entries));
+            }
+        }
+    }
 
     private Task<IReadOnlyList<Note>> CurrentListAsync(CancellationToken cancellationToken)
     {

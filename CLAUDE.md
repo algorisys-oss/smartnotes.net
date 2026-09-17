@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 616 green tests.
+through Velopack. 636 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -202,6 +202,17 @@ each built its own there would be two `Note` objects for one note, both held by
 the autosave, and whichever wrote last would quietly undo the other. The
 view-model is forgotten when the window closes, or an archive/restore would serve
 a stale copy. This is why `IWindowManager.ShowNoteAsync` takes an id.
+
+**Anything that changes a note from outside its window goes through
+`IWindowManager.ChangeNoteAsync`.** The manager's to-do view ticks items in notes
+that may be open on the desktop. A note with a view-model is changed through it,
+because its `Note` is what the autosave holds — possibly with typing not yet
+written — and a change saved straight to storage is overwritten by that autosave
+moments later. `ChangeNoteAsync_ForANoteBeingTypedInOnTheDesktop_KeepsTheTypingAndTheChange`
+failed against exactly that direct save. The change is flushed before it returns,
+because the caller reads the note back next. And the item ticked is checked by its
+text as well as its position (`TodoList.Tick`), since the list it came from can be
+older than the note.
 
 **A manager row is a `NoteListItem`, not a `NoteViewModel`** — read-only, cheap,
 and there may be a hundred. The manager lists newest-first while the repository

@@ -42,6 +42,14 @@ public partial class ManagerWindow : Window
         }
 
         manager.Items.CollectionChanged += (_, _) => ShowCount();
+        manager.TodoGroups.CollectionChanged += (_, _) => ShowCount();
+        manager.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ManagerViewModel.ShowingTodos))
+            {
+                ShowCount();
+            }
+        };
         ShowCount();
     }
 
@@ -50,6 +58,14 @@ public partial class ManagerWindow : Window
         var count = this.FindControl<TextBlock>("StatusCount");
         if (count is null || _manager is null)
         {
+            return;
+        }
+
+        if (_manager.ShowingTodos)
+        {
+            var todos = _manager.TodoGroups.Sum(group => group.Items.Count);
+            var notes = _manager.TodoGroups.Count;
+            count.Text = $"{todos} {(todos == 1 ? "to-do" : "to-dos")} in {notes} {(notes == 1 ? "note" : "notes")}";
             return;
         }
 

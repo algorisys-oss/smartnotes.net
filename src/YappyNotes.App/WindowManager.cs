@@ -124,6 +124,30 @@ public sealed class WindowManager : IWindowManager
         window.Show();
     }
 
+    public async Task ChangeNoteAsync(Guid noteId, Func<string, string> changeContent)
+    {
+        ArgumentNullException.ThrowIfNull(changeContent);
+
+        // A note with a view-model is changed through it. Its Note is the one the
+        // autosave holds, possibly with typing not yet written; changing a stored
+        // copy instead would be overwritten by that autosave a moment later.
+        if (_viewModels.TryGetValue(noteId, out var live))
+        {
+            live.Content = changeContent(live.Content);
+
+            // Written now: whoever made the change reads the note back next, and
+            // would otherwise find the debounce still holding it.
+            await _autoSave.FlushAsync(noteId);
+            return;
+        }
+
+        if ((await _notes.GetActiveAsync()).FirstOrDefault(note => note.Id == noteId) is { } stored)
+        {
+            stored.Content = changeContent(stored.Content);
+            await _notes.SaveAsync(stored);
+        }
+    }
+
     public void CloseNote(Guid noteId)
     {
         if (_open.TryGetValue(noteId, out var window))

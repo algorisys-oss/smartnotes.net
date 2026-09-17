@@ -38,6 +38,17 @@ public interface IWindowManager
     /// </summary>
     void ShowManager();
 
+    /// <summary>
+    /// Changes a note's text from outside its window - the manager ticking a to-do.
+    /// </summary>
+    /// <remarks>
+    /// Through the note's own view-model when it has one, never around it. That
+    /// view-model's Note is what the autosave holds, possibly with typing not yet
+    /// written, and a change written straight to storage would be overwritten by
+    /// that autosave moments later. A note that is not on the desktop is stored.
+    /// </remarks>
+    Task ChangeNoteAsync(Guid noteId, Func<string, string> changeContent);
+
     /// <summary>The notes that currently have a window open.</summary>
     IReadOnlyCollection<Guid> OpenNotes { get; }
 }

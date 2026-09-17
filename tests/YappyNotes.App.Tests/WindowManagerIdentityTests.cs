@@ -66,4 +66,61 @@ public class WindowManagerIdentityTests
 
         Assert.Single(_windows.OpenNotes);
     }
+
+    private async Task<string> StoredContentAsync(Guid id)
+    {
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        await _autoSave.WhenIdleAsync();
+        return (await _repository.GetByIdAsync(id))!.Content;
+    }
+
+    [AvaloniaFact]
+    public async Task ChangeNoteAsync_ForANoteWithNoWindow_ChangesWhatIsStored()
+    {
+        var note = await _notes.CreateAsync();
+        note.Content = "- [ ] milk";
+        await _notes.SaveAsync(note);
+
+        await _windows.ChangeNoteAsync(note.Id, content => content.Replace("[ ]", "[x]", StringComparison.Ordinal));
+
+        Assert.Equal("- [x] milk", await StoredContentAsync(note.Id));
+    }
+
+    /// <summary>
+    /// The manager ticking a to-do in a note that is open on the desktop. Written
+    /// straight to the database, the tick would be overwritten by the window's own
+    /// autosave of whatever was typed a moment ago - its Note still has the box
+    /// unticked. Going through the window's view-model keeps both.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task ChangeNoteAsync_ForANoteBeingTypedInOnTheDesktop_KeepsTheTypingAndTheChange()
+    {
+        var note = await _notes.CreateAsync();
+        note.Content = "- [ ] milk";
+        await _notes.SaveAsync(note);
+        await _windows.ShowNoteAsync(note.Id);
+        _windows.ViewModelFor(note.Id)!.Content = "- [ ] milk\n- [ ] eggs";
+
+        await _windows.ChangeNoteAsync(note.Id, content => content.Replace("[ ] milk", "[x] milk", StringComparison.Ordinal));
+
+        Assert.Equal("- [x] milk\n- [ ] eggs", await StoredContentAsync(note.Id));
+    }
+
+    /// <summary>
+    /// Whoever changed the note reads it back next - the manager's to-do list
+    /// refreshing - so the change is written now rather than when the debounce
+    /// gets round to it.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task ChangeNoteAsync_ForANoteOnTheDesktop_IsStoredByTheTimeItReturns()
+    {
+        var note = await _notes.CreateAsync();
+        note.Content = "- [ ] milk";
+        await _notes.SaveAsync(note);
+        await _windows.ShowNoteAsync(note.Id);
+
+        await _windows.ChangeNoteAsync(note.Id, content => content.Replace("[ ]", "[x]", StringComparison.Ordinal));
+
+        Assert.Equal("- [x] milk", (await _repository.GetByIdAsync(note.Id))!.Content);
+    }
 }
