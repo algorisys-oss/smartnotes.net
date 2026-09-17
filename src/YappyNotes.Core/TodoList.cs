@@ -1,5 +1,8 @@
 namespace YappyNotes.Core;
 
+/// <summary>How many of a note's to-dos are ticked, out of how many there are.</summary>
+public sealed record TodoProgress(int Done, int Total);
+
 /// <summary>
 /// Keeping a checklist going without typing its Markdown.
 /// </summary>
@@ -92,6 +95,64 @@ public static class TodoList
         }
 
         return content.EndsWith('\n') ? content + item : content + lineBreak + item;
+    }
+
+    /// <summary>How many of the note's to-dos are ticked, out of how many.</summary>
+    public static TodoProgress Progress(string content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        var todos = NoteMarkdown.Parse(content).Where(block => block.Kind == MarkdownBlockKind.Task).ToList();
+        return new TodoProgress(todos.Count(todo => todo.IsDone), todos.Count);
+    }
+
+    /// <summary>
+    /// Removes the line of every ticked to-do - except one with an unticked to-do
+    /// under it, which is still a heading for work to do and would otherwise leave
+    /// that item hanging under whatever came before.
+    /// </summary>
+    public static string ClearCompleted(string content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        var blocks = NoteMarkdown.Parse(content);
+        var kept = blocks
+            .Where((block, i) => block is not { Kind: MarkdownBlockKind.Task, IsDone: true } || HasOpenTodoUnder(blocks, i))
+            .ToList();
+
+        if (kept.Count == blocks.Count)
+        {
+            return content;
+        }
+
+        // Rebuilt from the lines that stay rather than cut out of the text: each cut
+        // moves every line after it, and a line removed last has to take the line
+        // break before it instead of its own.
+        return string.Join(LineBreakOf(content), kept.Select(block => content.Substring(block.SourceStart, block.SourceLength)));
+    }
+
+    /// <summary>
+    /// Whether an unticked to-do sits under this item: among the list lines straight
+    /// after it that are indented deeper.
+    /// </summary>
+    private static bool HasOpenTodoUnder(IReadOnlyList<MarkdownBlock> blocks, int index)
+    {
+        var level = blocks[index].Level;
+
+        for (var j = index + 1; j < blocks.Count; j++)
+        {
+            if (blocks[j] is not { Kind: MarkdownBlockKind.Task or MarkdownBlockKind.Bullet } child || child.Level <= level)
+            {
+                return false;
+            }
+
+            if (child is { Kind: MarkdownBlockKind.Task, IsDone: false })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -141,4 +141,52 @@ public class TodoWindowTests
         Assert.DoesNotContain("- [ ] milk\n- [ ]", editor.Text, StringComparison.Ordinal);
         Assert.StartsWith("- [ ] milk", editor.Text, StringComparison.Ordinal);
     }
+
+    private static T Named<T>(NoteWindow window, string name)
+        where T : Control
+        => window.FindControl<T>(name) ?? throw new InvalidOperationException($"the note has no {name}");
+
+    [AvaloniaFact]
+    public void FormattedChecklist_SaysHowManyAreDone()
+    {
+        var window = OpenWith("- [x] bread\n- [ ] milk");
+
+        Assert.True(Named<Control>(window, "TodoFooter").IsVisible);
+        Assert.Equal("1 of 2 done", Named<TextBlock>(window, "TodoProgress").Text);
+    }
+
+    [AvaloniaFact]
+    public void ClearCompleted_RemovesTheTickedItemsAndOffersUndo()
+    {
+        var window = OpenWith("- [x] bread\n- [ ] milk");
+
+        Named<Button>(window, "TodoClear").Command!.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("- [ ] milk", NoteOf(window).Content);
+        Assert.True(Named<Button>(window, "TodoUndoClear").IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void UndoClear_PutsTheItemsBackAndGoesAway()
+    {
+        var window = OpenWith("- [x] bread\n- [ ] milk");
+        Named<Button>(window, "TodoClear").Command!.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Named<Button>(window, "TodoUndoClear").Command!.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("- [x] bread\n- [ ] milk", NoteOf(window).Content);
+        Assert.False(Named<Button>(window, "TodoUndoClear").IsVisible);
+    }
+
+    /// <summary>Nothing ticked means nothing to clear, so the button is not offered.</summary>
+    [AvaloniaFact]
+    public void ClearCompleted_WithNothingTicked_IsNotOffered()
+    {
+        var window = OpenWith("- [ ] milk");
+
+        Assert.False(Named<Button>(window, "TodoClear").IsVisible);
+    }
 }

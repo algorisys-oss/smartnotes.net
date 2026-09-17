@@ -103,11 +103,22 @@
 
                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
 
-                            <TextBlock Grid.Row="0" Grid.Column="0"
-                                       Text="{Binding DisplayTitle}"
-                                       Foreground="#1A1A1A"
-                                       FontWeight="SemiBold"
-                                       TextTrimming="CharacterEllipsis" />
+                            <DockPanel Grid.Row="0" Grid.Column="0">
+                                <!-- "2/5": a checklist's state without opening the note. -->
+                                <TextBlock x:Name="RowTodoProgress"
+                                           DockPanel.Dock="Right"
+                                           Text="{Binding TodoProgress}"
+                                           IsVisible="{Binding TodoProgress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                           Foreground="#1A1A1A"
+                                           Opacity="0.6"
+                                           FontSize="11"
+                                           Margin="8,0"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding DisplayTitle}"
+                                           Foreground="#1A1A1A"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                            </DockPanel>
 
                             <TextBlock Grid.Row="1" Grid.Column="0"
                                        Text="{Binding Preview}"

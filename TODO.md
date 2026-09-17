@@ -11,6 +11,8 @@ since, so it stops living in someone's head.
   (`RightClickingFormattedText_OpensTheNotesOwnMenu`). The Markdown editor is a
   `TextBox` with Fluent's Cut/Copy/Paste flyout, so while typing it still hides
   them. A shortcut that cycles colours would cover that.
+- **Ticked to-dos stay where they are.** Moving them to the bottom of their list
+  as they are ticked was offered alongside "Clear completed" and not built yet.
 - **The manager's preview shows raw Markdown** — `- [ ] milk`, `**bold**`. A
   plain-text rendering of `NoteMarkdown`'s runs would read better there.
 - **No hand cursor over a link or a checkbox** in a formatted note. They are

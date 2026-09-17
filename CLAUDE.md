@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 593 green tests.
+through Velopack. 616 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -329,6 +329,16 @@ to the `TextBox` editor. Things about it that were learned rather than planned:
   Avalonia 12 has no `ClearFocus` and `Window.Focus()` leaves focus where it was —
   rather than reaching the window and closing the note. A context menu's items
   have null commands until the menu has been opened once; tests open it first.
+- **"Clear completed" deletes text, so it can be undone rather than confirmed.**
+  `TodoList.ClearCompleted` keeps a ticked item that still has an unticked one
+  under it, and rebuilds the note from the lines that stay — cutting lines out one
+  at a time moved every position after each cut. Undo is offered in the footer only
+  while the note is exactly as the clear left it; after any other change, restoring
+  the old text would undo that change too. The footer stays after clearing even
+  when no to-dos are left, because that is where Undo is.
+- **A `Button` on note paper needs `Background="Transparent"` on the control**, as
+  the title buttons have and `Button.textlink` does: the window's presenter style
+  alone left Fluent's grey fill on it.
 - **The link bar only shows while editing.** Formatted, links are clickable where
   they are written; the bar is for when the editor's plain text is in the way.
 

@@ -17,7 +17,8 @@ public sealed record NoteListItem(
     string Preview,
     NoteColor Color,
     DateTimeOffset ModifiedUtc,
-    bool IsArchived)
+    bool IsArchived,
+    string TodoProgress = "")
 {
     private const int PreviewLength = 90;
 
@@ -31,7 +32,8 @@ public sealed record NoteListItem(
             PreviewFor(note.Content),
             note.Color,
             note.ModifiedUtc,
-            note.IsArchived);
+            note.IsArchived,
+            ProgressFor(note.Content));
     }
 
     /// <summary>
@@ -51,6 +53,13 @@ public sealed record NoteListItem(
             .FirstOrDefault(line => line.Length > 0);
 
         return string.IsNullOrEmpty(firstRealLine) ? "Untitled" : Shorten(firstRealLine);
+    }
+
+    /// <summary>"2/5" for a note with to-dos, so a checklist's state shows without opening it.</summary>
+    private static string ProgressFor(string content)
+    {
+        var progress = TodoList.Progress(content);
+        return progress.Total == 0 ? string.Empty : $"{progress.Done}/{progress.Total}";
     }
 
     // One line, however many the note has: a row is a fixed height.

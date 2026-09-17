@@ -304,4 +304,26 @@ public class ManagerViewModelTests
 
         Assert.Equal(1, _windows.SettingsShown);
     }
+
+    [Fact]
+    public async Task RefreshAsync_ForANoteWithTodos_ShowsHowManyAreDone()
+    {
+        await NoteAsync("Shopping", "- [x] bread\n- [ ] milk");
+        var manager = NewManager();
+
+        await manager.RefreshAsync(Token);
+
+        Assert.Equal("1/2", manager.Items[0].TodoProgress);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_ForANoteWithoutTodos_ShowsNoProgress()
+    {
+        await NoteAsync("Shopping", "milk");
+        var manager = NewManager();
+
+        await manager.RefreshAsync(Token);
+
+        Assert.Equal(string.Empty, manager.Items[0].TodoProgress);
+    }
 }
