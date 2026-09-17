@@ -15,6 +15,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsService _settings;
     private readonly IThemeApplier _theme;
+    private readonly ILoginItem _loginItem;
 
     /// <summary>
     /// True while the controls are being filled in from storage. Without it,
@@ -25,13 +26,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private Task _saving = Task.CompletedTask;
 
-    public SettingsViewModel(SettingsService settings, IThemeApplier theme)
+    public SettingsViewModel(SettingsService settings, IThemeApplier theme, ILoginItem loginItem)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(theme);
+        ArgumentNullException.ThrowIfNull(loginItem);
 
         _settings = settings;
         _theme = theme;
+        _loginItem = loginItem;
     }
 
     [ObservableProperty]
@@ -42,6 +45,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool CheckForUpdates { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool StartAtLogin { get; set; } = true;
+
+    /// <summary>
+    /// Only an installed copy can start at login. Anywhere else the checkbox is
+    /// shown disabled rather than hidden, so nobody wonders where it went.
+    /// </summary>
+    public bool CanChooseStartAtLogin => _loginItem.IsAvailable;
 
     public IReadOnlyList<NoteColor> AvailableColors { get; } = Enum.GetValues<NoteColor>();
 
@@ -57,6 +69,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             DefaultNoteColor = stored.DefaultNoteColor;
             Theme = stored.Theme;
             CheckForUpdates = stored.CheckForUpdates;
+            StartAtLogin = stored.StartAtLogin;
         }
         finally
         {
@@ -73,6 +86,38 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnDefaultNoteColorChanged(NoteColor value) => Save();
 
     partial void OnCheckForUpdatesChanged(bool value) => Save();
+
+    partial void OnStartAtLoginChanged(bool value)
+    {
+        if (_loading || !_loginItem.IsAvailable)
+        {
+            return;
+        }
+
+        try
+        {
+            _loginItem.Set(value);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // The system said no, so the checkbox goes back to the truth and
+            // nothing is saved. Going through _loading keeps putting it back from
+            // counting as a change of its own.
+            _loading = true;
+            try
+            {
+                StartAtLogin = !value;
+            }
+            finally
+            {
+                _loading = false;
+            }
+
+            return;
+        }
+
+        Save();
+    }
 
     partial void OnThemeChanged(AppTheme value)
     {
@@ -99,6 +144,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             DefaultNoteColor = DefaultNoteColor,
             Theme = Theme,
             CheckForUpdates = CheckForUpdates,
+            StartAtLogin = StartAtLogin,
         });
     }
 }

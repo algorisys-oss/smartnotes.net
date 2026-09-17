@@ -101,4 +101,36 @@ public class SettingsServiceTests
 
         Assert.True(settings.CheckForUpdates);
     }
+
+    /// <summary>
+    /// A sticky note that is not there after a reboot until somebody remembers to
+    /// start the app is not doing its job, so this is on unless turned off.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_OnAFirstRun_StartsAtLogin()
+    {
+        var settings = await NewService().LoadAsync(Token);
+
+        Assert.True(settings.StartAtLogin);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WithStartAtLoginTurnedOff_RemembersThatOnTheNextLoad()
+    {
+        var service = NewService();
+
+        await service.SaveAsync(new AppSettings { StartAtLogin = false }, Token);
+
+        Assert.False((await service.LoadAsync(Token)).StartAtLogin);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithAStartAtLoginSettingNothingUnderstands_FallsBackToOn()
+    {
+        await _repository.SetAsync("startAtLogin", "maybe", Token);
+
+        var settings = await NewService().LoadAsync(Token);
+
+        Assert.True(settings.StartAtLogin);
+    }
 }

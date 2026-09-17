@@ -28,6 +28,10 @@ and `FocusedNoteTests`.
   packages when the previous release is in the output folder at pack time;
   `release.yml` does not fetch it first (`vpk download github`), so there are
   none. Worth doing once releases are frequent.
+- **Start at login has only been watched on Linux.** The Windows `Run` key and
+  the macOS LaunchAgent are written by tested code, but nobody has logged in to
+  either and seen the app appear. On macOS, deleting the app also leaves its
+  LaunchAgent behind: there is no uninstall hook there to remove it.
 - **The macOS installer and app are not signed or notarised**, and the Windows
   `Setup.exe` is not signed. Gatekeeper and SmartScreen will warn on first run.
   Signing needs certificates held as repository secrets.

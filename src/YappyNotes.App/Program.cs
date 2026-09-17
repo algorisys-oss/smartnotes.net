@@ -27,9 +27,18 @@ internal static class Program
         // CommandLine would answer those as unknown arguments with exit code 2.
         // On a normal start it also installs an update that was downloaded but
         // never restarted into.
-        VelopackApp.Build()
-            .SetAutoApplyOnStartup(CommandLine.MayApplyUpdates(args))
-            .Run();
+        var velopack = VelopackApp.Build()
+            .SetAutoApplyOnStartup(CommandLine.MayApplyUpdates(args));
+
+        // Windows is the only platform whose uninstaller runs anything of ours, and
+        // the Run key is the one registration that would otherwise go on naming a
+        // deleted program. Linux's entry has TryExec for that.
+        if (OperatingSystem.IsWindows())
+        {
+            velopack = velopack.OnBeforeUninstallFastCallback(_ => WindowsRunKey.Remove());
+        }
+
+        velopack.Run();
 
         // Before Avalonia, so that a question can be answered on a machine with
         // no display - which is how the release workflow proves the packaged
