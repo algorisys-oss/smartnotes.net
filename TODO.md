@@ -6,7 +6,16 @@ since, so it stops living in someone's head.
 
 ## Polish
 
-_Nothing open right now._
+- **The colours are still missing from the body's right-click menu.** The body
+  is a `TextBox`, and Fluent gives it its own Cut/Copy/Paste flyout, so
+  right-clicking most of a note never reaches the note's context menu. The
+  header's colour button is the way in now; adding the swatches to that text
+  flyout too, or a shortcut that cycles colours, would cover the rest.
+
+Done: **recolouring is visible** — a dot in the title strip painted the note's
+colour opens a flyout of swatches, the current one marked. It used to be
+reachable only from a context menu hardly anyone could find. See
+`NoteColourWindowTests`.
 
 Done: **the focused note looks different** — a darker, slightly thicker edge
 while the window is active, and only the edge, because repainting the paper on
