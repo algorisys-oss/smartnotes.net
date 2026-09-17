@@ -66,4 +66,20 @@ public sealed partial class TrayViewModel : ObservableObject
 
     [RelayCommand]
     public void Quit() => _lifetime.Quit();
+
+    /// <summary>
+    /// What starting the app again does while it is already running: shows what a
+    /// start would have shown, in the copy that is already running.
+    /// </summary>
+    /// <remarks>
+    /// A second copy is not harmless. It would load its own <c>Note</c> for every
+    /// note on the desktop and autosave it, so moving a window in one copy would
+    /// write that copy's older text over what was just typed in the other.
+    /// </remarks>
+    [RelayCommand]
+    public async Task BringForwardAsync()
+    {
+        await ShowAllNotesAsync();
+        _windows.ShowManager();
+    }
 }

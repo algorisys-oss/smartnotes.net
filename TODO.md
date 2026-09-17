@@ -39,8 +39,8 @@ and `FocusedNoteTests`.
   The tray icon is a StatusNotifierItem, which GNOME shows only through the
   AppIndicator extension (Ubuntu ships it on; stock GNOME does not). Without one
   there is no icon, and once the manager is closed the app keeps running with
-  nothing to click; starting it again opens a second copy. A single-instance
-  check that brings the running app forward would cover both.
+  nothing to click. Starting it again brings the manager back, so launching the
+  app is the way in.
 
 - **The manager's list is rebuilt when the window is brought forward**, so a note
   edited in its own window keeps its old preview until you come back to the

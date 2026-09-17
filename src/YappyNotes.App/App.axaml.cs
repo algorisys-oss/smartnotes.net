@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using YappyNotes.Core;
 using YappyNotes.ViewModels;
 
@@ -12,6 +13,12 @@ public partial class App : Application
     private AppServices? _services;
     private WindowManager? _windows;
     private bool _shuttingDown;
+
+    /// <summary>
+    /// This process's claim on the notes folder, which a second start wakes. Null
+    /// under the test harness and the designer, which claim nothing.
+    /// </summary>
+    internal SingleInstance? RunningCopy { get; init; }
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -75,6 +82,11 @@ public partial class App : Application
         {
             await _windows.ShowNoteAsync(note.Id);
         }
+
+        // Only now. A wake shows every note, and one arriving while the restore
+        // above was still awaiting a note would open that note's window twice:
+        // ShowNoteAsync checks for an open window before its await, not after.
+        RunningCopy?.Listen(() => Dispatcher.UIThread.Post(() => tray.BringForwardCommand.Execute(null)));
     }
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
