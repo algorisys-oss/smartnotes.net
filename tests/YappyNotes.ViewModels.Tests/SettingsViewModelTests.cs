@@ -9,6 +9,7 @@ public class SettingsViewModelTests
     private readonly InMemorySettingsRepository _repository = new();
     private readonly SettingsService _settings;
     private readonly FakeThemeApplier _theme = new();
+    private readonly FakeLoginItem _loginItem = new();
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
@@ -16,7 +17,7 @@ public class SettingsViewModelTests
 
     private async Task<SettingsViewModel> LoadedAsync()
     {
-        var viewModel = new SettingsViewModel(_settings, _theme);
+        var viewModel = new SettingsViewModel(_settings, _theme, _loginItem);
         await viewModel.LoadAsync(Token);
         return viewModel;
     }
@@ -143,5 +144,96 @@ public class SettingsViewModelTests
         await viewModel.WhenSavedAsync();
 
         Assert.False((await StoredAsync()).CheckForUpdates);
+    }
+
+    [Fact]
+    public async Task StartAtLogin_WhenTurnedOff_IsWrittenWithoutBeingAsked()
+    {
+        var viewModel = await LoadedAsync();
+
+        viewModel.StartAtLogin = false;
+        await viewModel.WhenSavedAsync();
+
+        Assert.False((await StoredAsync()).StartAtLogin);
+    }
+
+    [Fact]
+    public async Task StartAtLogin_WhenTurnedOff_TakesTheAppOutOfLogin()
+    {
+        var viewModel = await LoadedAsync();
+
+        viewModel.StartAtLogin = false;
+
+        Assert.Equal([false], _loginItem.Sets);
+    }
+
+    /// <summary>
+    /// A build run from source registering itself would start whatever was last
+    /// built, at every login, from a folder that may not exist next week.
+    /// </summary>
+    [Fact]
+    public async Task StartAtLogin_OnACopyThatIsNotInstalled_LeavesTheSystemAlone()
+    {
+        _loginItem.IsAvailable = false;
+        var viewModel = await LoadedAsync();
+
+        viewModel.StartAtLogin = false;
+
+        Assert.Empty(_loginItem.Sets);
+    }
+
+    [Fact]
+    public async Task CanChooseStartAtLogin_OnACopyThatIsNotInstalled_IsFalse()
+    {
+        _loginItem.IsAvailable = false;
+
+        var viewModel = await LoadedAsync();
+
+        Assert.False(viewModel.CanChooseStartAtLogin);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithStartAtLoginStored_TouchesNoLoginItem()
+    {
+        await _settings.SaveAsync(new AppSettings { StartAtLogin = false }, Token);
+
+        await LoadedAsync();
+
+        Assert.Empty(_loginItem.Sets);
+    }
+
+    /// <summary>
+    /// The system refusing - a read-only autostart folder, a locked-down registry -
+    /// must not leave a checkbox claiming something that did not happen, or crash
+    /// the app from a settings window.
+    /// </summary>
+    [Fact]
+    public async Task StartAtLogin_WhenTheSystemRefuses_GoesBackToWhatItWas()
+    {
+        var viewModel = await LoadedAsync();
+        _loginItem.Failure = new UnauthorizedAccessException("no");
+
+        viewModel.StartAtLogin = false;
+        await viewModel.WhenSavedAsync();
+
+        Assert.True(viewModel.StartAtLogin);
+        Assert.True((await StoredAsync()).StartAtLogin);
+    }
+
+    /// <summary>
+    /// Every save writes every setting, and a new AppSettings starts with this one
+    /// on - so forgetting it in the save would switch it back on whenever any other
+    /// setting changed.
+    /// </summary>
+    [Fact]
+    public async Task Theme_WhenChanged_KeepsStartAtLoginAsItWas()
+    {
+        await _settings.SaveAsync(new AppSettings { StartAtLogin = false }, Token);
+        var viewModel = await LoadedAsync();
+
+        viewModel.Theme = AppTheme.Dark;
+        await viewModel.WhenSavedAsync();
+
+        Assert.False((await StoredAsync()).StartAtLogin);
     }
 }

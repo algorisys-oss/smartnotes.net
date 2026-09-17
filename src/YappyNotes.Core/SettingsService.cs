@@ -9,6 +9,7 @@ public sealed class SettingsService
     private const string ThemeKey = "theme";
     private const string DefaultNoteColorKey = "defaultNoteColor";
     private const string CheckForUpdatesKey = "checkForUpdates";
+    private const string StartAtLoginKey = "startAtLogin";
 
     private readonly ISettingsRepository _repository;
 
@@ -41,9 +42,14 @@ public sealed class SettingsService
             settings.DefaultNoteColor = color;
         }
 
-        if (stored.TryGetValue(CheckForUpdatesKey, out var text) && bool.TryParse(text, out var check))
+        if (TryRead(stored, CheckForUpdatesKey, out bool check))
         {
             settings.CheckForUpdates = check;
+        }
+
+        if (TryRead(stored, StartAtLoginKey, out bool startAtLogin))
+        {
+            settings.StartAtLogin = startAtLogin;
         }
 
         return settings;
@@ -56,6 +62,13 @@ public sealed class SettingsService
         await _repository.SetAsync(ThemeKey, settings.Theme.ToString(), cancellationToken);
         await _repository.SetAsync(DefaultNoteColorKey, settings.DefaultNoteColor.ToString(), cancellationToken);
         await _repository.SetAsync(CheckForUpdatesKey, settings.CheckForUpdates.ToString(), cancellationToken);
+        await _repository.SetAsync(StartAtLoginKey, settings.StartAtLogin.ToString(), cancellationToken);
+    }
+
+    private static bool TryRead(IReadOnlyDictionary<string, string> stored, string key, out bool value)
+    {
+        value = default;
+        return stored.TryGetValue(key, out var text) && bool.TryParse(text, out value);
     }
 
     private static bool TryRead<T>(IReadOnlyDictionary<string, string> stored, string key, out T value)

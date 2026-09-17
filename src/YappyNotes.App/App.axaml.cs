@@ -58,13 +58,19 @@ public partial class App : Application
             throw;
         }
 
+        var loginItem = LoginItems.ForThisProcess();
+
         _windows = new WindowManager(
             _services.Notes,
             _services.AutoSave,
-            () => new SettingsViewModel(_services!.Settings, new ThemeApplier()));
+            () => new SettingsViewModel(_services!.Settings, new ThemeApplier(), loginItem));
 
         var settings = await _services.Settings.LoadAsync();
         new ThemeApplier().Apply(settings.Theme);
+
+        // Every start, so the first start of an installed copy registers it and a
+        // moved app has its entry rewritten. It never stops the notes coming back.
+        await LoginStartup.ApplyStoredAsync(_services.Settings, loginItem);
 
         var lifetime = new DesktopAppLifetime(desktop);
         var tray = new TrayViewModel(_services.Notes, _windows, lifetime);

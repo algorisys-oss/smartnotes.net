@@ -23,7 +23,7 @@ public class SettingsWindowTests
         var autoSave = new AutoSaveService(notes, _clock, TimeSpan.FromMilliseconds(750));
 
         _windows = new WindowManager(
-            notes, autoSave, () => new SettingsViewModel(_settings, new ThemeApplier()));
+            notes, autoSave, () => new SettingsViewModel(_settings, new ThemeApplier(), new FakeLoginItem()));
     }
 
     private SettingsViewModel OpenSettings()
@@ -100,7 +100,7 @@ public class SettingsWindowTests
     [AvaloniaFact]
     public async Task SettingsWindow_UntickingUpdateChecks_TurnsThemOff()
     {
-        var viewModel = new SettingsViewModel(_settings, new ThemeApplier());
+        var viewModel = new SettingsViewModel(_settings, new ThemeApplier(), new FakeLoginItem());
         await viewModel.LoadAsync();
         var window = new Views.SettingsWindow(viewModel);
         window.Show();
@@ -111,5 +111,38 @@ public class SettingsWindowTests
         box.IsChecked = false;
 
         Assert.False(viewModel.CheckForUpdates);
+    }
+
+    [AvaloniaFact]
+    public async Task StartAtLoginBox_WhenUnticked_TurnsTheSettingOff()
+    {
+        var viewModel = new SettingsViewModel(_settings, new ThemeApplier(), new FakeLoginItem());
+        await viewModel.LoadAsync();
+
+        var window = new Views.SettingsWindow(viewModel);
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        var box = window.FindControl<CheckBox>("StartAtLoginBox");
+        Assert.NotNull(box);
+
+        box.IsChecked = false;
+
+        Assert.False(viewModel.StartAtLogin);
+    }
+
+    [AvaloniaFact]
+    public async Task StartAtLoginBox_OnACopyThatIsNotInstalled_IsDisabled()
+    {
+        var viewModel = new SettingsViewModel(_settings, new ThemeApplier(), new FakeLoginItem { IsAvailable = false });
+        await viewModel.LoadAsync();
+
+        var window = new Views.SettingsWindow(viewModel);
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var box = window.FindControl<CheckBox>("StartAtLoginBox");
+        Assert.NotNull(box);
+
+        Assert.False(box.IsEnabled);
     }
 }

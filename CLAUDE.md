@@ -346,6 +346,31 @@ closed, because Avalonia cannot show a closed window again. Do not "fix" that by
 cancelling the manager's close and hiding it: a window that cancels its close
 cancels the app's shutdown too.
 
+**An installed copy starts at login, on by default.** `AppSettings.StartAtLogin`
+is the setting; `ILoginItem` is the seam, with one implementation per OS in
+`LoginItems.cs` — an XDG autostart entry, a Windows `Run` key, a macOS
+LaunchAgent. Four things about it:
+
+- **Only a Velopack-installed copy is available.** A build, an archive or
+  `deploy-local.sh`'s folder never touches the system, and the checkbox is
+  disabled there. Registering a build would start whatever was last built, from a
+  folder that may be gone.
+- **Every start re-applies the setting** (`LoginStartup.ApplyStoredAsync`). That
+  is what registers a first install, since the default is on, and what rewrites
+  the entry after the app has moved. A failure is swallowed there, never stopping
+  the notes coming back; in the settings window it puts the checkbox back.
+- **On Linux the path is the AppImage file**, from `LinuxVelopackLocator`, not
+  `Environment.ProcessPath` — that is inside a mount which is gone when the app
+  exits. `Exec` is quoted and escaped by the desktop-entry rules (spaces, `%`, `$`
+  and the doubled backslash), and `TryExec` makes an entry inert once the AppImage
+  is deleted, since deleting it is how an AppImage is uninstalled.
+- **Only Windows gets an uninstall hook**, because `OnBeforeUninstallFastCallback`
+  runs nowhere else; it removes the `Run` value.
+
+Checked on Linux with a packed AppImage: it registers on first start, the entry
+passes `desktop-file-validate`, turning the setting off removes it on the next
+start, and a Debug build writes nothing. Windows and macOS are not yet watched.
+
 **An installed copy updates itself, and the restart must be the app's own
 shutdown.** `UpdatesViewModel` checks on start (`AppSettings.CheckForUpdates`, on
 by default — the plan's "no network" goal was changed for this, deliberately),
