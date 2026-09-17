@@ -28,8 +28,8 @@ the layers and the one arrow that must never exist, a timer session where the
 write counter moves three times in eight minutes, why a countdown survives being
 closed, and the repository contract answered twice.
 
-> **Status: Milestone 5 done. Milestone 6 is half done: the tray icon is in, and
-> rich text is scoped in [docs/plan.md](docs/plan.md) and not started.**
+> **Status: every milestone in [docs/plan.md](docs/plan.md) is done, Milestone 6's
+> tray icon and rich text included.**
 >
 > All eight MMF items hold: notes live on the desktop as their own borderless
 > windows — draggable, resizable, pinnable, recolourable — save themselves as you
@@ -40,8 +40,13 @@ closed, and the repository contract answered twice.
 > On top of that, a note can carry a stream timer — a countdown for "back in
 > 5:00" or a count-up for how long you have been live — that pauses, resumes and
 > restarts, whose label, length and direction are editable while it is stopped,
-> and which survives closing the app. Links in a note's text are offered beside
-> it, http/https/mailto only.
+> and which survives closing the app.
+>
+> A note's text is Markdown, drawn formatted: headings, bullets, checklists you
+> tick in place, bold, italic, `code`, and links — bare or labelled,
+> http/https/mailto only — that open where they are written. Click the text to
+> edit the Markdown, with the caret where you clicked; click away and it is
+> formatted again. It is still stored as the plain text you typed.
 >
 > The app lives in the tray: closing the manager leaves it running, and the tray
 > menu makes a new note, shows or hides every note, reopens the manager and quits.
@@ -50,7 +55,7 @@ closed, and the repository contract answered twice.
 > is turned off, and starting it while it runs brings the running copy forward
 > rather than opening a second.
 >
-> 441 green tests. Start at [LOOP.md](LOOP.md).
+> 526 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 

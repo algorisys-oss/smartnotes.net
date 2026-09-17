@@ -43,9 +43,11 @@ public class LinkTests
     }
 
     [AvaloniaFact]
-    public void NoteWindow_WithLinksInIt_OffersThemUnderTheNote()
+    public void NoteWindow_EditingANoteWithLinksInIt_OffersThemUnderTheNote()
     {
         var window = OpenWith("stream https://twitch.tv/rajesh and https://example.com/plan");
+        ((NoteViewModel)window.DataContext!).BeginEditingAtEnd();
+        Dispatcher.UIThread.RunJobs();
 
         var bar = window.FindControl<ItemsControl>("LinkBar")!;
         Assert.True(bar.IsVisible);

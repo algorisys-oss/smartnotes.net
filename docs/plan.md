@@ -433,10 +433,23 @@ on Markdown in Milestone 6.
 
 ### Milestone 6 — Rich text and a tray icon
 
-The last one, and **half done**: the tray icon is in, rich text is not started.
-Two things, chosen over the seven others that were on this list:
+The last one, and **done**. Two things, chosen over the seven others that were on
+this list:
 
-#### Rich text
+#### Rich text — done
+
+Built as recommended below, and the two open questions answered. `SelectableTextBlock`
+was not used: a plain `TextBlock` per line, with checkboxes, bullets and links as
+characters in its runs, and a press hit-tested against the line's `TextLayout` to
+find the character under it. That makes links and checkboxes clickable with no
+controls inside the text, and selection would have fought click-to-edit for the
+same gesture. The caret lands on the pressed character because every parsed run
+records where its text starts in the source. The interaction is click to edit,
+clicking away to render — chosen over an edit/preview toggle, which had no room
+left on the title strip. Checklists were added to the subset, ticked in place.
+`CLAUDE.md` has what was learned building it.
+
+What follows was the plan.
 
 The note body is an editable `TextBox`, which draws plain text and nothing else.
 That is the whole problem, and the approach decides how much else has to move.

@@ -6,11 +6,20 @@ since, so it stops living in someone's head.
 
 ## Polish
 
-- **The colours are still missing from the body's right-click menu.** The body
-  is a `TextBox`, and Fluent gives it its own Cut/Copy/Paste flyout, so
-  right-clicking most of a note never reaches the note's context menu. The
-  header's colour button is the way in now; adding the swatches to that text
-  flyout too, or a shortcut that cycles colours, would cover the rest.
+- **While editing, the colours are missing from the right-click menu.** A
+  formatted note's text now opens the note's own menu, colours included
+  (`RightClickingFormattedText_OpensTheNotesOwnMenu`). The Markdown editor is a
+  `TextBox` with Fluent's Cut/Copy/Paste flyout, so while typing it still hides
+  them. A shortcut that cycles colours would cover that.
+- **The manager's preview shows raw Markdown** — `- [ ] milk`, `**bold**`. A
+  plain-text rendering of `NoteMarkdown`'s runs would read better there.
+- **No hand cursor over a link or a checkbox** in a formatted note. They are
+  underlined and drawn as boxes, but the pointer does not change.
+- **Numbered lists, block quotes and tables are not parsed**, deliberately for
+  now; `1. milk` stays readable as the text it is.
+- **A long note has not been lived with formatted.** The plan worried about a
+  couple of hundred words; the swap keeps the caret, but nobody has used it on a
+  note that long yet.
 
 Done: **recolouring is visible** — a dot in the title strip painted the note's
 colour opens a flyout of swatches, the current one marked. It used to be
