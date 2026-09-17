@@ -31,6 +31,17 @@ public sealed class FormattedNote : StackPanel
     public static readonly StyledProperty<IReadOnlyList<NoteLine>?> LinesProperty =
         AvaloniaProperty.Register<FormattedNote, IReadOnlyList<NoteLine>?>(nameof(Lines));
 
+    /// <summary>
+    /// A row drawn among the lines rather than after them all - the line a new to-do
+    /// is typed on, where the item will be stored.
+    /// </summary>
+    public static readonly StyledProperty<Control?> AddRowProperty =
+        AvaloniaProperty.Register<FormattedNote, Control?>(nameof(AddRow));
+
+    /// <summary>Which line the <see cref="AddRow"/> is drawn before; past the end is after them all.</summary>
+    public static readonly StyledProperty<int> AddRowPositionProperty =
+        AvaloniaProperty.Register<FormattedNote, int>(nameof(AddRowPosition), int.MaxValue);
+
     private const double BaseFontSize = 14;
     private const double IndentPerLevel = 16;
 
@@ -54,6 +65,18 @@ public sealed class FormattedNote : StackPanel
         set => SetValue(LinesProperty, value);
     }
 
+    public Control? AddRow
+    {
+        get => GetValue(AddRowProperty);
+        set => SetValue(AddRowProperty, value);
+    }
+
+    public int AddRowPosition
+    {
+        get => GetValue(AddRowPositionProperty);
+        set => SetValue(AddRowPositionProperty, value);
+    }
+
     /// <summary>A character of a line was pressed.</summary>
     public event EventHandler<LinePressedEventArgs>? LinePressed;
 
@@ -61,7 +84,12 @@ public sealed class FormattedNote : StackPanel
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == LinesProperty)
+        if (change.Property == AddRowProperty && change.OldValue is Control old)
+        {
+            Children.Remove(old);
+        }
+
+        if (change.Property == LinesProperty || change.Property == AddRowProperty || change.Property == AddRowPositionProperty)
         {
             Rebuild();
         }
@@ -100,13 +128,38 @@ public sealed class FormattedNote : StackPanel
 
     private static int DrawnLength(NoteLine line) => line.Marker.Length + line.Block.Runs.Sum(run => run.Text.Length);
 
+    /// <summary>
+    /// Redraws the lines around the add row without ever taking the row out. Removing
+    /// it would take the keyboard off a to-do being typed every time an item is added
+    /// - which is exactly when the lines change.
+    /// </summary>
     private void Rebuild()
     {
-        Children.Clear();
-
-        foreach (var line in Lines ?? [])
+        foreach (var drawn in Children.OfType<TextBlock>().Where(child => child.Tag is NoteLine).ToList())
         {
-            Children.Add(Draw(line));
+            Children.Remove(drawn);
+        }
+
+        var lines = Lines ?? [];
+        var row = AddRow;
+
+        if (row is not null && !Children.Contains(row))
+        {
+            Children.Add(row);
+        }
+
+        // The row is the only child left, so each line goes in before or after it.
+        var before = Math.Clamp(AddRowPosition, 0, lines.Count);
+        for (var i = 0; i < lines.Count; i++)
+        {
+            if (row is not null && i < before)
+            {
+                Children.Insert(i, Draw(lines[i]));
+            }
+            else
+            {
+                Children.Add(Draw(lines[i]));
+            }
         }
     }
 

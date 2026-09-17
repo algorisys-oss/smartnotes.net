@@ -91,23 +91,31 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
 
-        <!-- The add-a-to-do field reads as a line to write on, not as a form: the
-             note's TextBox styles above take its border away, so this puts back a
-             faint rule under it. Declared after them, which is what lets it win. -->
-        <Style Selector="TextBox.adder /template/ Border#PART_BorderElement">
+        <!-- A new to-do is typed on a line of the list, so it looks like one: no
+             fill and no border in any state, the same size as the text around it. -->
+        <Style Selector="TextBox.inline /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="BorderBrush" Value="#33000000" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
         </Style>
-        <Style Selector="TextBox.adder:pointerover /template/ Border#PART_BorderElement">
+        <Style Selector="TextBox.inline:pointerover /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="BorderBrush" Value="#55000000" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
-        <Style Selector="TextBox.adder:focus /template/ Border#PART_BorderElement">
+        <Style Selector="TextBox.inline:focus /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="BorderBrush" Value="#88000000" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <!-- "+ Add a to-do": a quiet line of the list, not a button. -->
+        <Style Selector="Button.prompt">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0,2" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="#80000000" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
         </Style>
     </Window.Styles>
 
@@ -403,21 +411,43 @@
             <StackPanel VerticalAlignment="Top">
                 <views:FormattedNote x:Name="Formatted"
                                      Lines="{Binding Lines}"
-                                     TextElement.Foreground="#1a1a1a" />
-
-                <!-- A to-do added as plain text: TodoList.Add writes the "- [ ]" for
-                     the reader. Enter adds and keeps the keyboard here for the next;
-                     Escape is "never mind". NoteWindow.axaml.cs handles both. -->
-                <TextBox x:Name="TodoAdder"
-                         Classes="adder"
-                         IsVisible="{Binding ShowsTodoAdder}"
-                         Text="{Binding NewTodoText}"
-                         PlaceholderText="+ Add a to-do"
-                         AcceptsReturn="False"
-                         Foreground="#1a1a1a"
-                         FontSize="13"
-                         Margin="0,4,0,0"
-                         Padding="2,3" />
+                                     AddRowPosition="{Binding NewTodoPosition}"
+                                     TextElement.Foreground="#1a1a1a">
+                    <!-- The list's own last line: "+ Add a to-do" at rest, and a new
+                         line with its box to type on while adding - drawn where the
+                         item will be stored, at its indent. TodoList.Add writes the
+                         "- [ ]". Enter adds and opens the next line, Enter on an empty
+                         one finishes, Escape throws it away: NoteWindow.axaml.cs. -->
+                    <views:FormattedNote.AddRow>
+                        <Grid x:Name="NewTodoRow"
+                              ColumnDefinitions="Auto,*"
+                              Margin="{Binding NewTodoLevel, Converter={x:Static app:IndentMargin.Instance}}">
+                            <TextBlock Grid.Column="0"
+                                       Text="&#x2610; "
+                                       FontSize="14"
+                                       Foreground="#444444"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding IsAddingTodo}" />
+                            <TextBox Grid.Column="1"
+                                     x:Name="TodoAdder"
+                                     Classes="inline"
+                                     IsVisible="{Binding IsAddingTodo}"
+                                     Text="{Binding NewTodoText}"
+                                     AcceptsReturn="False"
+                                     Foreground="#1a1a1a"
+                                     FontSize="14"
+                                     MinHeight="0"
+                                     Padding="0,1"
+                                     VerticalAlignment="Center" />
+                            <Button Grid.Column="0" Grid.ColumnSpan="2"
+                                    x:Name="TodoAddPrompt"
+                                    Classes="prompt"
+                                    Content="+ Add a to-do"
+                                    IsVisible="{Binding ShowsTodoPrompt}"
+                                    Command="{Binding StartTodoListCommand}" />
+                        </Grid>
+                    </views:FormattedNote.AddRow>
+                </views:FormattedNote>
 
                 <!-- How far through the list, and clearing what is done. Undo
                      stays here straight after a clear, even once nothing is left

@@ -43,7 +43,7 @@ closed, and the repository contract answered twice.
 > and which survives closing the app.
 >
 > A note's text is Markdown, drawn formatted: headings, bullets, checklists you
-> tick in place, add to from a field under the list (or with Enter in the
+> tick in place, add to by typing on a new line of the list (or with Enter in the
 > editor), and clear when done — with an undo, and a "2 of 5 done" count on the
 > note and in the manager, whose To-dos view lists every open item from every note
 > and ticks them from there; `@2026-09-20` — or `@tomorrow`, `@fri` in the add
@@ -59,7 +59,7 @@ closed, and the repository contract answered twice.
 > is turned off, and starting it while it runs brings the running copy forward
 > rather than opening a second.
 >
-> 667 green tests. Start at [LOOP.md](LOOP.md).
+> 673 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 
