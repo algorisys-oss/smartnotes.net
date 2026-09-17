@@ -2,6 +2,50 @@
 
 What changed in each release, and why — not a list of files.
 
+## 0.3.0
+
+A note's text is now formatted, and a note can be a to-do list worth running a day
+from.
+
+**Notes are formatted.** Write Markdown and a note shows it: headings, bullets,
+**bold**, *italic*, `code`, and links - bare, or `[labelled](https://…)` - that open
+where they are written. Click the text to edit it, and the cursor lands on the word
+you clicked; click away, or press Escape, and it is formatted again. Ctrl+B and
+Ctrl+I bold or italicise a selection, and a second press takes it off. It is still
+stored as the plain text you typed, so search works as it did and nothing about
+your notes had to be converted. Each line stays its own line, and anything that is
+not formatting - "5 * 3", a user_name - shows exactly as typed.
+
+**To-do lists.** `- [ ] milk` is a box you tick right on the note. You do not need
+to know that, though:
+
+- "+ Add a to-do" at the end of a checklist, or "Add a to-do" in a note's menu,
+  gives you a new line with its box to type on. Enter adds it and starts the next;
+  Enter on an empty line finishes. In the editor, Enter carries a list on the same
+  way.
+- A checklist shows "2 of 5 done", and "Clear completed" removes what is ticked -
+  with an Undo straight after, because it deletes text.
+- The manager's new **To-dos** view lists every open item from every note, grouped
+  by note, and ticks them from there. It is safe to use with the note open on your
+  desktop.
+- Add a due date with `@2026-09-20` - or type `@today`, `@tomorrow` or `@fri` when
+  adding, which becomes the date. Overdue items turn red and today's amber, and the
+  To-dos view puts whatever is due soonest first.
+
+**Tidier.** Right-clicking a note's formatted text now opens the note's own menu,
+colours included, instead of a text box's Cut/Copy/Paste. The timer's buttons are
+drawn icons of one size instead of mismatched symbols.
+
+**Fixed:** typing in a new note lost the keyboard after the first letter, since
+formatting went in during this release's development; and adding a to-do to an
+empty note put the first letter in the wrong place. Neither reached 0.2.0.
+
+Known rough edges: overdue colours on a note left open past midnight update when the
+note next changes; the manager's note list still previews the raw Markdown; the
+installers are still unsigned.
+
+681 tests.
+
 ## 0.2.0
 
 The first stable release with a tray and self-updating installers. Everything in

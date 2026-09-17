@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <VersionPrefix>0.2.0</VersionPrefix>
+    <VersionPrefix>0.3.0</VersionPrefix>
     <!-- Empty for a release; "beta.1" makes 0.2.0-beta.1, which the tag, the
          archives, the installers and the updater all read as a prerelease. The
          assembly and file versions cannot carry a suffix, so they keep the prefix. -->
