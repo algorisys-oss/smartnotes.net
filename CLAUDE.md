@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 636 green tests.
+through Velopack. 667 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -347,6 +347,13 @@ to the `TextBox` editor. Things about it that were learned rather than planned:
   while the note is exactly as the clear left it; after any other change, restoring
   the old text would undo that change too. The footer stays after clearing even
   when no to-dos are left, because that is where Undo is.
+- **A due date is `@2026-09-20` in a to-do's text, never a relative word.** A note
+  outlives the day it was written, so `@tomorrow` stored as typed would be wrong the
+  next day; `TodoDue.ResolveShorthand` turns `@today`, `@tomorrow` and weekdays into
+  a date as an item is added. The parser only reads dates inside to-dos, keeps the
+  date as its own run so clicks still map to the source, and "today" is the reader's
+  local day (`DueStates.TodayBy`) — a date on a calendar, not an instant. A ticked
+  item is never overdue.
 - **A `Button` on note paper needs `Background="Transparent"` on the control**, as
   the title buttons have and `Button.textlink` does: the window's presenter style
   alone left Fluent's grey fill on it.

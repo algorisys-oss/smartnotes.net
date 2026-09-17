@@ -28,7 +28,7 @@ public class NoteTodoTests
         var note = await _notes.CreateAsync(Token);
         note.Content = content;
         await _notes.SaveAsync(note, Token);
-        return new NoteViewModel(note, _notes, _autoSave, new FakeWindowManager());
+        return new NoteViewModel(note, _notes, _autoSave, new FakeWindowManager(), _clock);
     }
 
     [Fact]
@@ -233,5 +233,40 @@ public class NoteTodoTests
 
         Assert.False(note.HasTodos);
         Assert.True(note.ShowsTodoFooter);
+    }
+
+    [Fact]
+    public async Task AddTodo_WithTomorrowTyped_StoresTheDateItMeans()
+    {
+        var note = await NoteSayingAsync("- [ ] milk");
+        note.NewTodoText = "call Sam @tomorrow";
+
+        note.AddTodoCommand.Execute(null);
+
+        Assert.Equal("- [ ] milk\n- [ ] call Sam @2026-09-18", note.Content);
+    }
+
+    [Theory]
+    [InlineData("- [ ] rent @2026-09-16", DueState.Overdue)]
+    [InlineData("- [ ] rent @2026-09-17", DueState.Today)]
+    [InlineData("- [ ] rent @2026-09-18", DueState.Later)]
+    public async Task Lines_ForATodoWithADueDate_KnowHowSoonItIs(string content, DueState expected)
+    {
+        var note = await NoteSayingAsync(content);
+
+        var due = note.Lines[0].Block.Runs.Single(run => run.Due is not null);
+
+        Assert.Equal(expected, note.Lines[0].DueStateOf(due));
+    }
+
+    /// <summary>A ticked item is not late, however long ago its date was.</summary>
+    [Fact]
+    public async Task Lines_ForATickedTodoPastItsDate_AreNotOverdue()
+    {
+        var note = await NoteSayingAsync("- [x] rent @2026-09-01");
+
+        var due = note.Lines[0].Block.Runs.Single(run => run.Due is not null);
+
+        Assert.Equal(DueState.Later, note.Lines[0].DueStateOf(due));
     }
 }

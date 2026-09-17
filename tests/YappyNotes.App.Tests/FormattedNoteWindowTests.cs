@@ -323,4 +323,17 @@ public class FormattedNoteWindowTests
         Assert.Equal("buy milk now", editor.Text);
         Assert.Equal((4, 8), (editor.SelectionStart, editor.SelectionEnd));
     }
+
+    [AvaloniaTheory]
+    [InlineData("@2026-09-16", DueState.Overdue)]
+    [InlineData("@2026-09-17", DueState.Today)]
+    [InlineData("@2026-09-18", DueState.Later)]
+    public void FormattedNote_ADueDate_IsDrawnInTheColourOfHowSoonItIs(string date, DueState state)
+    {
+        var window = OpenWith($"- [ ] rent {date}");
+
+        var drawn = Line(window, 0).Inlines!.OfType<Run>().Single(run => run.Text == date);
+
+        Assert.Equal(DueBrushes.For(state), drawn.Foreground);
+    }
 }

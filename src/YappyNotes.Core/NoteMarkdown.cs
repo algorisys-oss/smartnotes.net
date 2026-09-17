@@ -33,7 +33,8 @@ public enum RunStyle
 /// right place.
 /// </param>
 /// <param name="Link">Where it goes, already through the allow-list, or null.</param>
-public sealed record MarkdownRun(string Text, int SourceStart, RunStyle Style = RunStyle.None, Uri? Link = null);
+/// <param name="Due">The date this is, if it is a to-do's due date: <c>@2026-09-20</c>.</param>
+public sealed record MarkdownRun(string Text, int SourceStart, RunStyle Style = RunStyle.None, Uri? Link = null, DateOnly? Due = null);
 
 /// <summary>One line of a note, parsed.</summary>
 /// <param name="SourceStart">Where the line starts in the note's content.</param>
@@ -179,7 +180,7 @@ public static class NoteMarkdown
         MarkdownBlockKind kind, int lineStart, int lineLength, int textStart, string content, int level = 0)
     {
         var runs = new List<MarkdownRun>();
-        ParseInlines(content, textStart, lineStart + lineLength, RunStyle.None, runs);
+        ParseInlines(content, textStart, lineStart + lineLength, RunStyle.None, runs, dates: kind == MarkdownBlockKind.Task);
 
         return new MarkdownBlock(kind, runs, lineStart, lineLength, level, TextStart: textStart);
     }
@@ -192,7 +193,7 @@ public static class NoteMarkdown
     /// like emphasis, is only a character. The text a reader typed is always all
     /// there on screen - formatting can hide a marker, never a word.
     /// </remarks>
-    private static void ParseInlines(string content, int start, int end, RunStyle style, List<MarkdownRun> runs)
+    private static void ParseInlines(string content, int start, int end, RunStyle style, List<MarkdownRun> runs, bool dates)
     {
         // Bare addresses are found first and treated as whole, so an underscore or
         // an asterisk inside a URL is never read as emphasis.
@@ -215,6 +216,15 @@ public static class NoteMarkdown
                 continue;
             }
 
+            if (c == '@' && dates && TryDueDate(content, i, end, out var due))
+            {
+                Plain(content, plainStart, i, style, runs);
+                runs.Add(new MarkdownRun(content.Substring(i, DueDateLength), i, style, Due: due));
+                i += DueDateLength;
+                plainStart = i;
+                continue;
+            }
+
             if (c == '`' && TryCode(content, i, end, out var codeEnd))
             {
                 Plain(content, plainStart, i, style, runs);
@@ -228,7 +238,7 @@ public static class NoteMarkdown
             {
                 Plain(content, plainStart, i, style, runs);
                 var label = new List<MarkdownRun>();
-                ParseInlines(content, i + 1, labelEnd, style, label);
+                ParseInlines(content, i + 1, labelEnd, style, label, dates);
                 runs.AddRange(label.Select(run => run with { Link = uri }));
                 i = linkEnd + 1;
                 plainStart = i;
@@ -239,7 +249,7 @@ public static class NoteMarkdown
             {
                 Plain(content, plainStart, i, style, runs);
                 var emphasis = width == 2 ? RunStyle.Bold : RunStyle.Italic;
-                ParseInlines(content, i + width, closer, style | emphasis, runs);
+                ParseInlines(content, i + width, closer, style | emphasis, runs, dates);
                 i = closer + width;
                 plainStart = i;
                 continue;
@@ -257,6 +267,37 @@ public static class NoteMarkdown
         {
             runs.Add(new MarkdownRun(content[start..end], start, style));
         }
+    }
+
+    /// <summary>"@2026-09-20": the at sign and an ISO date.</summary>
+    private const int DueDateLength = 11;
+
+    /// <summary>
+    /// A to-do's due date, <c>@2026-09-20</c>. Only a whole word - not the tail of an
+    /// address like me@2026-09-20 - and only a date that exists.
+    /// </summary>
+    /// <remarks>
+    /// Written as an absolute date on purpose. A note is text that outlives the day
+    /// it was written, so "@tomorrow" stored as typed would be wrong by tomorrow;
+    /// <see cref="TodoDue.ResolveShorthand"/> turns it into a date as it is added.
+    /// </remarks>
+    private static bool TryDueDate(string content, int at, int end, out DateOnly due)
+    {
+        due = default;
+
+        if (at + DueDateLength > end
+            || (at > 0 && !char.IsWhiteSpace(content[at - 1]))
+            || (at + DueDateLength < end && (char.IsLetterOrDigit(content[at + DueDateLength]) || content[at + DueDateLength] == '-')))
+        {
+            return false;
+        }
+
+        return DateOnly.TryParseExact(
+            content.AsSpan(at + 1, DueDateLength - 1),
+            "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None,
+            out due);
     }
 
     private static bool TryCode(string content, int open, int end, out int close)
