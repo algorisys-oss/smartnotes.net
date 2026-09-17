@@ -64,6 +64,17 @@ public partial class NoteWindow : Window
         if (body is not null)
         {
             body.LostFocus += OnBodyLostFocus;
+
+            // Tunnelling, because the TextBox takes Enter for a line break itself
+            // before anything bubbling would hear it.
+            body.AddHandler(KeyDownEvent, OnBodyKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        }
+
+        var adder = this.FindControl<TextBox>("TodoAdder");
+        if (adder is not null)
+        {
+            adder.AddHandler(KeyDownEvent, OnAdderKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+            adder.LostFocus += (_, _) => _note?.StopAddingTodos();
         }
 
         var titleBox = this.FindControl<TextBox>("TitleBox");
@@ -171,6 +182,53 @@ public partial class NoteWindow : Window
     }
 
     /// <summary>
+    /// Enter on a list line continues the list; Shift+Enter, or Enter anywhere else,
+    /// is the editor's own line break.
+    /// </summary>
+    private void OnBodyKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None
+            || sender is not TextBox body || _note is null || body.SelectionStart != body.SelectionEnd)
+        {
+            return;
+        }
+
+        if (_note.ContinueListOnEnter(body.CaretIndex) is { } caret)
+        {
+            e.Handled = true;
+            body.CaretIndex = caret;
+        }
+    }
+
+    /// <summary>
+    /// Enter adds the to-do and leaves the keyboard in the field for the next one.
+    /// Escape empties and leaves the field - handled here, or it would reach the
+    /// window and close the note.
+    /// </summary>
+    private void OnAdderKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_note is null)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            _note.AddTodoCommand.Execute(null);
+        }
+        else if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            _note.NewTodoText = string.Empty;
+
+            // Not Focus() on the window, which leaves the keyboard where it was.
+            // Avalonia 12 has no ClearFocus; focusing nothing is how it is said.
+            GetTopLevel(this)?.FocusManager?.Focus(null);
+        }
+    }
+
+    /// <summary>
     /// Ctrl+B or Ctrl+I: the view-model rewrites the Markdown, and the same text is
     /// selected again afterwards so a second shortcut - or a second press to undo
     /// the first - acts on it.
@@ -249,6 +307,13 @@ public partial class NoteWindow : Window
     /// </summary>
     private void OnNoteChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(NoteViewModel.IsStartingTodoList) && _note is { IsStartingTodoList: true })
+        {
+            // Asked for from the menu: the field has only just become visible.
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => this.FindControl<TextBox>("TodoAdder")?.Focus());
+            return;
+        }
+
         if (e.PropertyName != nameof(NoteViewModel.IsEditing) || _note is not { IsEditing: true } note)
         {
             return;
