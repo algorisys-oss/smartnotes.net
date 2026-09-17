@@ -308,6 +308,39 @@ that together, both checked with a spike rather than read off the API:
   D-Bus watch before marking itself disposed, and the escaped cancellation aborted
   the process on quit, intermittently. Take it out once Avalonia fixes that.
 
+**One running copy per notes folder.** A second copy is not a spare window: it
+loads its own `Note` for every note on the desktop and autosaves it, so moving a
+note in one writes its older text over what was typed in the other — "one note,
+one view-model" across two processes. `SingleInstance` holds a lock on
+`yappynotes.lock` in the notes folder, and a start that cannot take it connects to
+a named pipe, which makes the running copy run `TrayViewModel.BringForward`, and
+exits. Six things about it, each checked:
+
+- **The claim is taken before Velopack runs.** Otherwise a second start's
+  auto-apply installs an update over the files of the copy that is running.
+- **The lock file is never deleted, and it is not in a temp folder.** Deleting it
+  while a third start has it open, or a temp cleaner deleting it under an app that
+  runs for weeks, is how two copies each end up holding a lock on a different
+  file of the same name. The OS drops the lock when a process dies, `kill -9`
+  included.
+- **The running copy listens only after its notes are restored.** A wake shows
+  every note, and `WindowManager.ShowNoteAsync` checks for an open window before
+  its await, so a wake mid-restore would open a note twice.
+- **The next pipe server opens before the last one closes.** On Unix a pipe is a
+  socket that exists only while a server holds it, and a start that connected in
+  the gap was accepted and dropped. `SingleInstanceTests` fails if the order is
+  swapped.
+- **`Listen` opens the first pipe itself, not on the thread pool.** Opened inside
+  the task, it appeared seconds late under a busy pool and a start in that window
+  gave up — the suite failed four runs in six. No test pins this down on a quiet
+  machine; a run of the whole App suite is what shows it.
+- **`Dispose` closes the pipe itself** before it lets go of the lock. Cancelling
+  the loop and waiting for it needs a pool thread too, and under load the wait ran
+  out with the pipe still open — the folder free and something still answering.
+
+A start that finds the folder claimed and nobody answering exits 1 rather than
+starting anyway.
+
 The manager is built fresh by `WindowManager.ShowManager` each time it has been
 closed, because Avalonia cannot show a closed window again. Do not "fix" that by
 cancelling the manager's close and hiding it: a window that cancels its close
@@ -322,9 +355,10 @@ downloads what it finds, and offers "Restart to update". Velopack's
 `WaitExitThenApplyUpdates` and the quit goes through `IAppLifetime`; a test holds
 the order. Three more things, each found by running it rather than reading:
 
-- **`VelopackApp.Run()` is first in `Main`**, before `CommandLine`. An installer
+- **`VelopackApp.Run()` comes before `CommandLine`** in `Main`. An installer
   starts the app with its own hook arguments, which `CommandLine` would answer as
-  unknown with exit code 2.
+  unknown with exit code 2. Only the single-instance claim goes ahead of it, and
+  only on a start with no arguments, so an installer's hooks never reach it.
 - **Only a normal start applies a pending update** (`CommandLine.MayApplyUpdates`).
   Applying restarts the app, and it once turned `--version` into an install and a
   relaunch just to print a number.

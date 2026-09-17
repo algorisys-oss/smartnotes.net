@@ -113,4 +113,30 @@ public class TrayViewModelTests
 
         Assert.Equal(1, _lifetime.QuitRequests);
     }
+
+    /// <summary>
+    /// Starting the app while it already runs brings the running one forward
+    /// rather than opening a second copy, and "forward" means what a start shows.
+    /// </summary>
+    [Fact]
+    public async Task BringForwardCommand_WhenTheAppIsStartedAgain_OpensTheManager()
+    {
+        var tray = NewTray();
+
+        await tray.BringForwardCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, _windows.ManagerShown);
+    }
+
+    [Fact]
+    public async Task BringForwardCommand_WithNotesHidden_ShowsEveryNoteOnTheDesktop()
+    {
+        var first = await _notes.CreateAsync(Token);
+        var second = await _notes.CreateAsync(Token);
+        var tray = NewTray();
+
+        await tray.BringForwardCommand.ExecuteAsync(null);
+
+        Assert.Equivalent(new[] { first.Id, second.Id }, _windows.Shown, strict: true);
+    }
 }
