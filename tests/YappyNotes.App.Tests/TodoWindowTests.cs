@@ -231,4 +231,42 @@ public class TodoWindowTests
 
         Assert.False(Named<Button>(window, "TodoClear").IsVisible);
     }
+
+    /// <summary>
+    /// Reported from real use: the first character typed on the new line lost the
+    /// keyboard, and only later ones went in. Pressed as a real key - key down and
+    /// its text - one at a time, checking focus after each.
+    /// </summary>
+    [AvaloniaFact]
+    public void NewLine_TheFirstKeyTyped_GoesInAndKeepsTheKeyboard()
+    {
+        var window = OpenWith("- [ ] milk");
+        Click(window, Prompt(window));
+        var adder = Adder(window);
+        var focusManager = TopLevel.GetTopLevel(window)!.FocusManager!;
+
+        window.KeyPress(Key.E, RawInputModifiers.None, PhysicalKey.E, "e");
+        window.KeyTextInput("e");
+        window.KeyRelease(Key.E, RawInputModifiers.None, PhysicalKey.E, "e");
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(adder.IsFocused, $"after the first key the keyboard was in {focusManager.GetFocusedElement()}");
+        Assert.Equal("e", adder.Text);
+        Assert.True(NoteOf(window).IsAddingTodo, "the first key ended adding");
+    }
+
+    [AvaloniaFact]
+    public void AddATodo_OnAnEmptyNote_TheFirstLetterTypedGoesOnTheNewLine()
+    {
+        var window = OpenWith(string.Empty);
+
+        NoteOf(window).StartTodoListCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+        window.KeyTextInput("H");
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(string.Empty, NoteOf(window).Content);
+        Assert.Equal("H", Adder(window).Text);
+        Assert.True(Adder(window).IsFocused);
+    }
 }

@@ -336,4 +336,33 @@ public class NoteTodoTests
 
         Assert.Equal(DueState.Later, note.Lines[0].DueStateOf(due));
     }
+
+    /// <summary>
+    /// Reported from real use, with a screenshot: on an empty note the first letter
+    /// typed became the note's text and the new box appeared under it. An empty note
+    /// shows the editor so a new note is ready to type into - and that rule was
+    /// still hiding the formatted note, and the new line in it, while adding.
+    /// </summary>
+    [Fact]
+    public async Task StartTodoList_OnAnEmptyNote_ShowsTheNewLineRatherThanTheEditor()
+    {
+        var note = await NoteSayingAsync(string.Empty);
+
+        note.StartTodoListCommand.Execute(null);
+
+        Assert.False(note.ShowsEditor);
+        Assert.True(note.IsAddingTodo);
+    }
+
+    /// <summary>Once nothing is being added, an empty note is ready to type into again.</summary>
+    [Fact]
+    public async Task CancelAddingTodo_OnAnEmptyNote_ShowsTheEditorAgain()
+    {
+        var note = await NoteSayingAsync(string.Empty);
+        note.StartTodoListCommand.Execute(null);
+
+        note.CancelAddingTodo();
+
+        Assert.True(note.ShowsEditor);
+    }
 }
