@@ -220,7 +220,7 @@ public partial class NoteWindow : Window
         else if (e.Key == Key.Escape)
         {
             e.Handled = true;
-            _note.NewTodoText = string.Empty;
+            _note.CancelAddingTodo();
 
             // Not Focus() on the window, which leaves the keyboard where it was.
             // Avalonia 12 has no ClearFocus; focusing nothing is how it is said.
@@ -307,9 +307,10 @@ public partial class NoteWindow : Window
     /// </summary>
     private void OnNoteChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(NoteViewModel.IsStartingTodoList) && _note is { IsStartingTodoList: true })
+        if (e.PropertyName == nameof(NoteViewModel.IsAddingTodo) && _note is { IsAddingTodo: true })
         {
-            // Asked for from the menu: the field has only just become visible.
+            // The new line has only just become visible, and a hidden control cannot
+            // take the keyboard.
             Avalonia.Threading.Dispatcher.UIThread.Post(() => this.FindControl<TextBox>("TodoAdder")?.Focus());
             return;
         }

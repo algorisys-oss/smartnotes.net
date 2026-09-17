@@ -32,44 +32,50 @@ public class NoteTodoTests
     }
 
     [Fact]
-    public async Task ShowsTodoAdder_OnANoteWithAChecklist_IsTrue()
+    public async Task ShowsTodoPrompt_OnANoteWithAChecklist_IsTrue()
     {
         var note = await NoteSayingAsync("- [ ] milk");
 
-        Assert.True(note.ShowsTodoAdder);
+        Assert.True(note.ShowsTodoPrompt);
     }
 
     [Fact]
-    public async Task ShowsTodoAdder_OnANoteWithoutAChecklist_IsFalse()
+    public async Task ShowsTodoPrompt_OnANoteWithoutAChecklist_IsFalse()
     {
         var note = await NoteSayingAsync("back soon");
 
-        Assert.False(note.ShowsTodoAdder);
+        Assert.False(note.ShowsTodoPrompt);
     }
 
-    /// <summary>In the editor the Markdown is right there, and Enter continues the list.</summary>
+    /// <summary>In the editor the Markdown is right there, and Enter continues a list.</summary>
     [Fact]
-    public async Task ShowsTodoAdder_WhileEditing_IsFalse()
+    public async Task ShowsTodoPrompt_WhileEditing_IsFalse()
     {
         var note = await NoteSayingAsync("- [ ] milk");
 
         note.BeginEditingAtEnd();
 
-        Assert.False(note.ShowsTodoAdder);
+        Assert.False(note.ShowsTodoPrompt);
     }
 
+    /// <summary>
+    /// Adding happens on a new line of the list itself, with its own box, rather
+    /// than in a separate field under the note - reported from real use, where a
+    /// field below with the item appearing above it read as the note misbehaving.
+    /// </summary>
     [Fact]
-    public async Task StartTodoList_OnANoteWithoutAChecklist_ShowsTheAdder()
+    public async Task StartTodoList_OnANoteWithoutAChecklist_OpensANewLineToTypeOn()
     {
         var note = await NoteSayingAsync("back soon");
 
         note.StartTodoListCommand.Execute(null);
 
-        Assert.True(note.ShowsTodoAdder);
+        Assert.True(note.IsAddingTodo);
+        Assert.False(note.ShowsTodoPrompt);
     }
 
     [Fact]
-    public async Task StartTodoList_WhileEditing_ShowsTheNoteFormattedWithTheAdder()
+    public async Task StartTodoList_WhileEditing_ShowsTheNoteFormattedWithTheNewLine()
     {
         var note = await NoteSayingAsync("back soon");
         note.BeginEditingAtEnd();
@@ -77,24 +83,14 @@ public class NoteTodoTests
         note.StartTodoListCommand.Execute(null);
 
         Assert.False(note.ShowsEditor);
-        Assert.True(note.ShowsTodoAdder);
-    }
-
-    [Fact]
-    public async Task StopAddingTodos_WithNothingTypedOnANoteWithoutAChecklist_HidesTheAdder()
-    {
-        var note = await NoteSayingAsync("back soon");
-        note.StartTodoListCommand.Execute(null);
-
-        note.StopAddingTodos();
-
-        Assert.False(note.ShowsTodoAdder);
+        Assert.True(note.IsAddingTodo);
     }
 
     [Fact]
     public async Task AddTodo_WithText_AddsTheItemAndSavesIt()
     {
         var note = await NoteSayingAsync("- [ ] milk");
+        note.StartTodoListCommand.Execute(null);
         note.NewTodoText = "eggs";
 
         note.AddTodoCommand.Execute(null);
@@ -104,27 +100,96 @@ public class NoteTodoTests
         Assert.Equal("- [ ] milk\n- [ ] eggs", (await _repository.GetByIdAsync(note.Id, Token))!.Content);
     }
 
-    /// <summary>Emptied, ready for the next item - adding three things is three Enters.</summary>
+    /// <summary>Enter starts the next item, as it does in the editor's own lists.</summary>
     [Fact]
-    public async Task AddTodo_WithText_EmptiesTheFieldForTheNextOne()
+    public async Task AddTodo_WithText_LeavesANewEmptyLineForTheNextItem()
     {
         var note = await NoteSayingAsync("- [ ] milk");
+        note.StartTodoListCommand.Execute(null);
         note.NewTodoText = "eggs";
 
         note.AddTodoCommand.Execute(null);
 
+        Assert.True(note.IsAddingTodo);
         Assert.Equal(string.Empty, note.NewTodoText);
     }
 
+    /// <summary>Enter on an empty item finishes the list - the same rule as the editor's.</summary>
     [Fact]
-    public async Task AddTodo_WithNothingTyped_ChangesNothing()
+    public async Task AddTodo_OnAnEmptyLine_FinishesAdding()
     {
         var note = await NoteSayingAsync("- [ ] milk");
-        note.NewTodoText = "  ";
+        note.StartTodoListCommand.Execute(null);
 
         note.AddTodoCommand.Execute(null);
 
+        Assert.False(note.IsAddingTodo);
         Assert.Equal("- [ ] milk", note.Content);
+    }
+
+    [Fact]
+    public async Task CancelAddingTodo_ThrowsAwayWhatWasTyped()
+    {
+        var note = await NoteSayingAsync("- [ ] milk");
+        note.StartTodoListCommand.Execute(null);
+        note.NewTodoText = "eg";
+
+        note.CancelAddingTodo();
+
+        Assert.False(note.IsAddingTodo);
+        Assert.Equal(string.Empty, note.NewTodoText);
+        Assert.Equal("- [ ] milk", note.Content);
+    }
+
+    /// <summary>
+    /// Clicking away is not "never mind": what was typed becomes the item rather than
+    /// being lost. Escape is how to throw it away.
+    /// </summary>
+    [Fact]
+    public async Task StopAddingTodos_WithSomethingTyped_KeepsItAsATodo()
+    {
+        var note = await NoteSayingAsync("- [ ] milk");
+        note.StartTodoListCommand.Execute(null);
+        note.NewTodoText = "eggs";
+
+        note.StopAddingTodos();
+
+        Assert.False(note.IsAddingTodo);
+        Assert.Equal("- [ ] milk\n- [ ] eggs", note.Content);
+    }
+
+    [Fact]
+    public async Task StopAddingTodos_WithNothingTyped_JustFinishes()
+    {
+        var note = await NoteSayingAsync("back soon");
+        note.StartTodoListCommand.Execute(null);
+
+        note.StopAddingTodos();
+
+        Assert.False(note.IsAddingTodo);
+        Assert.Equal("back soon", note.Content);
+    }
+
+    /// <summary>
+    /// The new line is drawn where the item will be stored - straight after the last
+    /// to-do, at its indent - not at the bottom of the note.
+    /// </summary>
+    [Fact]
+    public async Task NewTodoPosition_OnANoteWithTextAfterItsList_IsStraightAfterTheLastTodo()
+    {
+        var note = await NoteSayingAsync("# Shop\n- [ ] milk\n  - [ ] oat\nthanks");
+
+        Assert.Equal(3, note.NewTodoPosition);
+        Assert.Equal(1, note.NewTodoLevel);
+    }
+
+    [Fact]
+    public async Task NewTodoPosition_OnANoteWithoutAChecklist_IsTheEnd()
+    {
+        var note = await NoteSayingAsync("back soon\nsee you");
+
+        Assert.Equal(2, note.NewTodoPosition);
+        Assert.Equal(0, note.NewTodoLevel);
     }
 
     [Fact]
@@ -218,6 +283,7 @@ public class NoteTodoTests
         var note = await NoteSayingAsync("- [x] bread\n- [ ] milk");
         note.ClearCompletedCommand.Execute(null);
 
+        note.StartTodoListCommand.Execute(null);
         note.NewTodoText = "eggs";
         note.AddTodoCommand.Execute(null);
 
@@ -239,6 +305,7 @@ public class NoteTodoTests
     public async Task AddTodo_WithTomorrowTyped_StoresTheDateItMeans()
     {
         var note = await NoteSayingAsync("- [ ] milk");
+        note.StartTodoListCommand.Execute(null);
         note.NewTodoText = "call Sam @tomorrow";
 
         note.AddTodoCommand.Execute(null);

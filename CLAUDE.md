@@ -37,7 +37,7 @@ counts down or up, and its text is Markdown drawn formatted — headings, bullet
 checklists you tick in place, bold, italic, code and clickable links. The app
 lives in the tray and outlives its windows, only one copy runs per notes folder,
 and an installed copy starts at login and updates itself from GitHub releases
-through Velopack. 667 green tests.
+through Velopack. 673 green tests.
 
 Nothing is scheduled beyond that. `docs/plan.md` parks seven ideas with their
 reasons, sync among them — rejected rather than deferred — and `TODO.md` holds
@@ -333,12 +333,19 @@ to the `TextBox` editor. Things about it that were learned rather than planned:
 - **To-dos are added without writing Markdown, and still stored as it.**
   `TodoList` in Core writes the `- [ ]`: Enter on a list line in the editor
   continues, splits or ends the list (Shift+Enter is a plain line break), and the
-  "+ Add a to-do" field under a formatted checklist appends after the last item at
-  its indent. The editor's Enter is a *tunnelling* handler, because the TextBox
+  list's own "+ Add a to-do" line opens a new line with its box, drawn where the
+  item will be stored (after the last to-do, at its indent) — typed on in place,
+  not in a field under the note, which read as the note misbehaving in real use.
+  Enter adds and opens the next line, Enter on an empty line finishes, Escape
+  throws it away, and clicking away keeps what was typed. `FormattedNote.Rebuild`
+  never removes that row while redrawing the lines around it: removing it takes the
+  keyboard off it on every added item, and a test fails if it does. The editor's Enter is a *tunnelling* handler, because the TextBox
   takes Enter for a line break before anything bubbling hears it. Escape in the
   field clears it and lets go of the keyboard — `FocusManager.Focus(null)`, since
   Avalonia 12 has no `ClearFocus` and `Window.Focus()` leaves focus where it was —
-  rather than reaching the window and closing the note. A context menu's items
+  rather than reaching the window and closing the note. Headless tests do not model
+  a context menu being a separate native window: a menu flow that passes headless
+  still has to be tried on a desktop. A context menu's items
   have null commands until the menu has been opened once; tests open it first.
 - **"Clear completed" deletes text, so it can be undone rather than confirmed.**
   `TodoList.ClearCompleted` keeps a ticked item that still has an unticked one

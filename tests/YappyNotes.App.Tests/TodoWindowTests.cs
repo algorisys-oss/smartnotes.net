@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.VisualTree;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -50,50 +52,90 @@ public class TodoWindowTests
         Dispatcher.UIThread.RunJobs();
     }
 
-    [AvaloniaFact]
-    public void FormattedChecklist_OffersAFieldToAddATodo()
-    {
-        var window = OpenWith("- [ ] milk");
+    private static Button Prompt(NoteWindow window)
+        => window.FindControl<Button>("TodoAddPrompt") ?? throw new InvalidOperationException("the note has no TodoAddPrompt");
 
-        Assert.True(ShowsAdder(window));
+    /// <summary>Clicks a control where a person would, rather than calling its command.</summary>
+    private static void Click(NoteWindow window, Control control)
+    {
+        var centre = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+        window.MouseDown(centre, MouseButton.Left);
+        window.MouseUp(centre, MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
     }
 
     [AvaloniaFact]
-    public void AddField_TypingAndPressingEnter_AddsTheTodoAndStaysReadyForTheNext()
+    public void FormattedChecklist_EndsWithAPromptToAddATodo()
     {
         var window = OpenWith("- [ ] milk");
-        var adder = Adder(window);
-        adder.Focus();
-        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(Prompt(window).IsVisible);
+        Assert.False(Adder(window).IsVisible, "a text box shows before anyone asked to add");
+    }
+
+    /// <summary>
+    /// Reported from real use: typing into a field under the note, with each item
+    /// appearing above it, read as the note misbehaving. The new item is typed on
+    /// its own line of the list, where it will be.
+    /// </summary>
+    [AvaloniaFact]
+    public void ClickingThePrompt_OpensANewLineInTheListWithTheKeyboardOnIt()
+    {
+        var window = OpenWith("- [ ] milk\nthanks");
+
+        Click(window, Prompt(window));
+
+        var row = Named<Control>(window, "NewTodoRow");
+        Assert.True(Adder(window).IsFocused, "the new line did not take the keyboard");
+        Assert.False(NoteOf(window).IsEditing, "adding opened the Markdown editor");
+        Assert.Equal(1, Named<FormattedNote>(window, "Formatted").Children.IndexOf(row));
+    }
+
+    [AvaloniaFact]
+    public void NewLine_TypingAndPressingEnter_AddsTheTodoAndOpensTheNextLine()
+    {
+        var window = OpenWith("- [ ] milk");
+        Click(window, Prompt(window));
 
         window.KeyTextInput("eggs");
         Press(window, Key.Enter);
 
         Assert.Equal("- [ ] milk\n- [ ] eggs", NoteOf(window).Content);
-        Assert.Equal(string.Empty, adder.Text);
-        Assert.True(adder.IsFocused, "the field let go of the keyboard, so the next to-do needs a click");
-        Assert.False(NoteOf(window).IsEditing, "adding a to-do opened the Markdown editor");
+        Assert.Equal(string.Empty, Adder(window).Text);
+        Assert.True(Adder(window).IsFocused, "the next line did not keep the keyboard");
+        Assert.True(NoteOf(window).IsAddingTodo);
     }
 
-    /// <summary>Escape in the field is "never mind", not "close this note".</summary>
     [AvaloniaFact]
-    public void AddField_Escape_LeavesTheFieldWithoutClosingTheNote()
+    public void NewLine_EnterWithNothingTyped_FinishesAdding()
     {
         var window = OpenWith("- [ ] milk");
-        var adder = Adder(window);
-        adder.Focus();
-        Dispatcher.UIThread.RunJobs();
+        Click(window, Prompt(window));
+
+        Press(window, Key.Enter);
+
+        Assert.False(NoteOf(window).IsAddingTodo);
+        Assert.True(Prompt(window).IsVisible);
+        Assert.Equal("- [ ] milk", NoteOf(window).Content);
+    }
+
+    /// <summary>Escape on the new line is "never mind", not "close this note".</summary>
+    [AvaloniaFact]
+    public void NewLine_Escape_ThrowsItAwayWithoutClosingTheNote()
+    {
+        var window = OpenWith("- [ ] milk");
+        Click(window, Prompt(window));
         window.KeyTextInput("eg");
 
         Press(window, Key.Escape);
 
         Assert.True(window.IsVisible);
-        Assert.False(adder.IsFocused);
-        Assert.Equal(string.Empty, adder.Text);
+        Assert.False(NoteOf(window).IsAddingTodo);
+        Assert.Equal("- [ ] milk", NoteOf(window).Content);
     }
 
     [AvaloniaFact]
-    public void AddATodoFromTheMenu_OnANoteWithoutAChecklist_OpensTheFieldWithTheKeyboardInIt()
+    public void AddATodoFromTheMenu_OnANoteWithoutAChecklist_OpensANewLineWithTheKeyboardOnIt()
     {
         var window = OpenWith("back soon");
         var chrome = window.FindControl<Border>("NoteChrome")!;
@@ -110,7 +152,7 @@ public class TodoWindowTests
         item.Command!.Execute(null);
         Dispatcher.UIThread.RunJobs();
 
-        Assert.True(ShowsAdder(window));
+        Assert.True(Adder(window).IsVisible);
         Assert.True(Adder(window).IsFocused);
     }
 

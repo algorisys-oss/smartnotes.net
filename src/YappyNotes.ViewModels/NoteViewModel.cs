@@ -163,19 +163,33 @@ public sealed partial class NoteViewModel : ObservableObject
     public bool HasTodos => Lines.Any(line => line.Block.Kind == MarkdownBlockKind.Task);
 
     /// <summary>
-    /// Whether the "Add a to-do" field shows under the formatted note: on a note with
-    /// a checklist, or once one has been asked for from the menu. Not while editing,
-    /// where the Markdown is in front of the reader and Enter continues a list.
+    /// Whether a checklist offers "+ Add a to-do" as its last line: on a formatted
+    /// note with to-dos, while nothing is being added.
     /// </summary>
-    public bool ShowsTodoAdder => !ShowsEditor && (HasTodos || IsStartingTodoList);
+    public bool ShowsTodoPrompt => !ShowsEditor && HasTodos && !IsAddingTodo;
 
     /// <summary>
-    /// A to-do list has been asked for on a note that has none yet. Like editing, it
-    /// is how the note is being looked at and is never stored.
+    /// Whether a new to-do is being typed, on its own line of the list with its own
+    /// box. Like editing, it is how the note is being looked at and never stored.
     /// </summary>
-    public bool IsStartingTodoList { get; private set; }
+    /// <remarks>
+    /// On the list itself rather than in a separate field under the note: reported
+    /// from real use, a field below with each item appearing above it read as the
+    /// note doing something odd.
+    /// </remarks>
+    public bool IsAddingTodo { get; private set; }
 
-    /// <summary>What is typed in the "Add a to-do" field, before it is added.</summary>
+    /// <summary>
+    /// Where the new line is drawn: before this index of <see cref="Lines"/>, which is
+    /// straight after the last to-do - where <see cref="TodoList.Add"/> will put the
+    /// item - or at the end of a note with none.
+    /// </summary>
+    public int NewTodoPosition => LastTodoIndex() is var last and >= 0 ? last + 1 : Lines.Count;
+
+    /// <summary>The new line's indent: the last to-do's, as the item will be stored.</summary>
+    public int NewTodoLevel => LastTodoIndex() is var last and >= 0 ? Lines[last].Block.Level : 0;
+
+    /// <summary>What is typed on the new to-do's line, before it is added.</summary>
     public string NewTodoText
     {
         get;
@@ -183,31 +197,56 @@ public sealed partial class NoteViewModel : ObservableObject
     } = string.Empty;
 
     /// <summary>
-    /// "Add a to-do" from the note's menu: shows the field, formatted, on a note that
-    /// has no checklist yet.
+    /// "Add a to-do", from the note's menu or the list's own prompt: opens a new line
+    /// with a box to type on, formatted.
     /// </summary>
     [RelayCommand]
     public void StartTodoList()
     {
         SetEditing(false);
-        SetStartingTodoList(true);
+        SetAddingTodo(true);
     }
 
     /// <summary>
-    /// The field was left. On a note with no checklist, and with nothing typed, it
-    /// goes away again; anything typed is kept rather than thrown away.
+    /// The new line was left - a click elsewhere. What was typed is kept, as the item
+    /// it was going to be; leaving is not "never mind", Escape is.
     /// </summary>
     public void StopAddingTodos()
     {
-        if (string.IsNullOrWhiteSpace(NewTodoText))
+        if (!IsAddingTodo)
         {
-            SetStartingTodoList(false);
+            return;
         }
+
+        AddTyped();
+        SetAddingTodo(false);
     }
 
-    /// <summary>Adds what was typed as a to-do and empties the field for the next one.</summary>
+    /// <summary>Escape on the new line: what was typed is thrown away.</summary>
+    public void CancelAddingTodo()
+    {
+        NewTodoText = string.Empty;
+        SetAddingTodo(false);
+    }
+
+    /// <summary>
+    /// Enter on the new line: adds the item and opens the next line - or, on an empty
+    /// line, finishes, the same rule as a list in the editor.
+    /// </summary>
     [RelayCommand]
     public void AddTodo()
+    {
+        if (string.IsNullOrWhiteSpace(NewTodoText))
+        {
+            NewTodoText = string.Empty;
+            SetAddingTodo(false);
+            return;
+        }
+
+        AddTyped();
+    }
+
+    private void AddTyped()
     {
         if (string.IsNullOrWhiteSpace(NewTodoText))
         {
@@ -218,6 +257,19 @@ public sealed partial class NoteViewModel : ObservableObject
         // be wrong by tomorrow.
         Content = TodoList.Add(_note.Content, TodoDue.ResolveShorthand(NewTodoText, DueStates.TodayBy(_timeProvider)));
         NewTodoText = string.Empty;
+    }
+
+    private int LastTodoIndex()
+    {
+        for (var i = Lines.Count - 1; i >= 0; i--)
+        {
+            if (Lines[i].Block.Kind == MarkdownBlockKind.Task)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>
@@ -296,16 +348,16 @@ public sealed partial class NoteViewModel : ObservableObject
         Content = before;
     }
 
-    private void SetStartingTodoList(bool starting)
+    private void SetAddingTodo(bool adding)
     {
-        if (IsStartingTodoList == starting)
+        if (IsAddingTodo == adding)
         {
             return;
         }
 
-        IsStartingTodoList = starting;
-        OnPropertyChanged(nameof(IsStartingTodoList));
-        OnPropertyChanged(nameof(ShowsTodoAdder));
+        IsAddingTodo = adding;
+        OnPropertyChanged(nameof(IsAddingTodo));
+        OnPropertyChanged(nameof(ShowsTodoPrompt));
     }
 
     /// <summary>
@@ -346,7 +398,7 @@ public sealed partial class NoteViewModel : ObservableObject
         OnPropertyChanged(nameof(IsEditing));
         OnPropertyChanged(nameof(ShowsEditor));
         OnPropertyChanged(nameof(ShowsLinkBar));
-        OnPropertyChanged(nameof(ShowsTodoAdder));
+        OnPropertyChanged(nameof(ShowsTodoPrompt));
         OnPropertyChanged(nameof(ShowsTodoFooter));
     }
 
@@ -361,7 +413,9 @@ public sealed partial class NoteViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowsEditor));
         OnPropertyChanged(nameof(ShowsLinkBar));
         OnPropertyChanged(nameof(HasTodos));
-        OnPropertyChanged(nameof(ShowsTodoAdder));
+        OnPropertyChanged(nameof(ShowsTodoPrompt));
+        OnPropertyChanged(nameof(NewTodoPosition));
+        OnPropertyChanged(nameof(NewTodoLevel));
         OnPropertyChanged(nameof(TodoProgressText));
         OnPropertyChanged(nameof(HasCompletedTodos));
         OnPropertyChanged(nameof(CanUndoClear));
