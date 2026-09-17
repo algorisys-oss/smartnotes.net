@@ -38,7 +38,7 @@ public class ManagerTodoTests
 
     private async Task<ManagerViewModel> ShowingTodosAsync()
     {
-        var manager = new ManagerViewModel(_notes, _windows) { ShowingTodos = true };
+        var manager = new ManagerViewModel(_notes, _windows, _clock) { ShowingTodos = true };
         await manager.RefreshAsync(Token);
         return manager;
     }
@@ -155,5 +155,38 @@ public class ManagerTodoTests
         await manager.OpenTodoNoteCommand.ExecuteAsync(manager.TodoGroups[0]);
 
         Assert.Equal([shopping.Id], _windows.Shown);
+    }
+
+    [Fact]
+    public async Task ShowingTodos_WithDueDates_SaysWhenEachIsDue()
+    {
+        await NoteAsync("Week", "- [ ] rent @2026-09-16\n- [ ] call Sam @2026-09-17\n- [ ] gym @2026-09-18\n- [ ] trip @2026-10-02\n- [ ] someday");
+
+        var manager = await ShowingTodosAsync();
+
+        var items = manager.TodoGroups[0].Items;
+        Assert.Equal(
+            [DueState.Overdue, DueState.Today, DueState.Later, DueState.Later, DueState.None],
+            items.Select(item => item.DueState));
+        Assert.Equal("Today", items[1].DueText);
+        Assert.Equal("Tomorrow", items[2].DueText);
+        Assert.Equal(new DateOnly(2026, 10, 2).ToString("MMM d", System.Globalization.CultureInfo.CurrentCulture), items[3].DueText);
+        Assert.Equal(string.Empty, items[4].DueText);
+    }
+
+    /// <summary>
+    /// The to-do view is for "what do I do next", so a note with something due soon
+    /// comes before one that was merely edited more recently.
+    /// </summary>
+    [Fact]
+    public async Task ShowingTodos_PutsTheNoteWithTheSoonestDueDateFirst()
+    {
+        await NoteAsync("Later", "- [ ] trip @2026-10-02");
+        await NoteAsync("Soon", "- [ ] rent @2026-09-16");
+        await NoteAsync("Undated", "- [ ] someday");
+
+        var manager = await ShowingTodosAsync();
+
+        Assert.Equal(["Soon", "Later", "Undated"], manager.TodoGroups.Select(group => group.Title));
     }
 }

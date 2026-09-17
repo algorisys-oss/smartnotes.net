@@ -3,8 +3,8 @@ namespace YappyNotes.Core;
 /// <summary>How many of a note's to-dos are ticked, out of how many there are.</summary>
 public sealed record TodoProgress(int Done, int Total);
 
-/// <summary>A to-do read out of a note: where its box is, its words, and its indent.</summary>
-public sealed record TodoItem(int CheckMarkIndex, string Text, int Level);
+/// <summary>A to-do read out of a note: where its box is, its words, its indent and its due date.</summary>
+public sealed record TodoItem(int CheckMarkIndex, string Text, int Level, DateOnly? Due = null);
 
 /// <summary>
 /// Keeping a checklist going without typing its Markdown.
@@ -135,8 +135,21 @@ public static class TodoList
         return stillThere ? NoteMarkdown.ToggleTask(content, item.CheckMarkIndex) : content;
     }
 
+    /// <summary>
+    /// A to-do's words without its due date - the date is carried separately, and a
+    /// list elsewhere shows it its own way - with the spaces it leaves folded.
+    /// </summary>
     private static TodoItem ItemOf(MarkdownBlock block)
-        => new(block.CheckMarkIndex, string.Concat(block.Runs.Select(run => run.Text)).Trim(), block.Level);
+    {
+        var words = string.Concat(block.Runs.Where(run => run.Due is null).Select(run => run.Text));
+        var due = block.Runs.FirstOrDefault(run => run.Due is not null)?.Due;
+
+        return new(
+            block.CheckMarkIndex,
+            string.Join(' ', words.Split(' ', StringSplitOptions.RemoveEmptyEntries)),
+            block.Level,
+            due);
+    }
 
     /// <summary>How many of the note's to-dos are ticked, out of how many.</summary>
     public static TodoProgress Progress(string content)

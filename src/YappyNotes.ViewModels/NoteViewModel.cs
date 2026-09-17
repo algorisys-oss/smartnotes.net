@@ -214,7 +214,9 @@ public sealed partial class NoteViewModel : ObservableObject
             return;
         }
 
-        Content = TodoList.Add(_note.Content, NewTodoText);
+        // "@tomorrow" becomes the date it means now, because stored as typed it would
+        // be wrong by tomorrow.
+        Content = TodoList.Add(_note.Content, TodoDue.ResolveShorthand(NewTodoText, DueStates.TodayBy(_timeProvider)));
         NewTodoText = string.Empty;
     }
 
@@ -350,7 +352,8 @@ public sealed partial class NoteViewModel : ObservableObject
 
     private void Reparse()
     {
-        Lines = [.. NoteMarkdown.Parse(_note.Content).Select(NoteLine.For)];
+        var today = DueStates.TodayBy(_timeProvider);
+        Lines = [.. NoteMarkdown.Parse(_note.Content).Select(block => NoteLine.For(block, today))];
         OnPropertyChanged(nameof(Lines));
 
         // Emptying a note, or typing into an empty one, changes whether there is

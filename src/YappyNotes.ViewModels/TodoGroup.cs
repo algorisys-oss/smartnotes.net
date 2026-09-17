@@ -17,4 +17,18 @@ public sealed record TodoEntry(Guid NoteId, TodoItem Item)
 
     /// <summary>The item's indent, drawn as a margin so nesting still reads.</summary>
     public int Level => Item.Level;
+
+    /// <summary>The reader's today when the list was built.</summary>
+    public DateOnly Today { get; init; }
+
+    public DueState DueState => DueStates.Of(Item.Due, Today, done: false);
+
+    /// <summary>"Today", "Tomorrow", or the date in the reader's own short form.</summary>
+    public string DueText => Item.Due switch
+    {
+        null => string.Empty,
+        { } due when due == Today => "Today",
+        { } due when due == Today.AddDays(1) => "Tomorrow",
+        { } due => due.ToString("MMM d", System.Globalization.CultureInfo.CurrentCulture),
+    };
 }

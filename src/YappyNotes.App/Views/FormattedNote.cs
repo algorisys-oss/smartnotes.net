@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Media;
+using YappyNotes.App;
 using YappyNotes.Core;
 using YappyNotes.ViewModels;
 
@@ -131,14 +132,15 @@ public sealed class FormattedNote : StackPanel
 
         foreach (var run in block.Runs)
         {
-            text.Inlines!.Add(Draw(run, done: block.Kind == MarkdownBlockKind.Task && block.IsDone));
+            text.Inlines!.Add(Draw(run, line));
         }
 
         return text;
     }
 
-    private static Run Draw(MarkdownRun run, bool done)
+    private static Run Draw(MarkdownRun run, NoteLine line)
     {
+        var done = line.Block is { Kind: MarkdownBlockKind.Task, IsDone: true };
         var drawn = new Run(run.Text);
 
         if (run.Style.HasFlag(RunStyle.Bold))
@@ -157,7 +159,15 @@ public sealed class FormattedNote : StackPanel
             drawn.Background = CodeBrush;
         }
 
-        if (run.Link is not null)
+        if (run.Due is not null)
+        {
+            // The date keeps its characters - a click on it must still land on the
+            // same character of the Markdown - and says how soon it is by colour.
+            var state = line.DueStateOf(run);
+            drawn.Foreground = DueBrushes.For(state);
+            drawn.FontWeight = state is DueState.Overdue or DueState.Today ? FontWeight.SemiBold : FontWeight.Normal;
+        }
+        else if (run.Link is not null)
         {
             drawn.Foreground = LinkBrush;
             drawn.TextDecorations = TextDecorations.Underline;

@@ -20,14 +20,17 @@ public sealed partial class ManagerViewModel : ObservableObject
     private readonly NoteService _notes;
     private readonly IWindowManager _windows;
 
-    public ManagerViewModel(NoteService notes, IWindowManager windows)
+    public ManagerViewModel(NoteService notes, IWindowManager windows, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(windows);
 
         _notes = notes;
         _windows = windows;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
+
+    private readonly TimeProvider _timeProvider;
 
     public ObservableCollection<NoteListItem> Items { get; } = [];
 
@@ -200,6 +203,8 @@ public sealed partial class ManagerViewModel : ObservableObject
         }
 
         var search = SearchText.Trim();
+        var today = DueStates.TodayBy(_timeProvider);
+        var groups = new List<TodoGroup>();
 
         foreach (var note in (await _notes.GetActiveAsync(cancellationToken)).OrderByDescending(note => note.ModifiedUtc))
         {
@@ -208,13 +213,20 @@ public sealed partial class ManagerViewModel : ObservableObject
 
             var entries = TodoList.OpenItems(note.Content)
                 .Where(item => search.Length == 0 || titleMatches || item.Text.Contains(search, StringComparison.CurrentCultureIgnoreCase))
-                .Select(item => new TodoEntry(note.Id, item))
+                .Select(item => new TodoEntry(note.Id, item) { Today = today })
                 .ToList();
 
             if (entries.Count > 0)
             {
-                TodoGroups.Add(new TodoGroup(note.Id, title, note.Color, entries));
+                groups.Add(new TodoGroup(note.Id, title, note.Color, entries));
             }
+        }
+
+        // Soonest due first: this view is for "what do I do next". Notes with no
+        // dates keep the newest-first order after them - OrderBy is stable.
+        foreach (var group in groups.OrderBy(group => group.Items.Min(item => item.Item.Due) ?? DateOnly.MaxValue))
+        {
+            TodoGroups.Add(group);
         }
     }
 

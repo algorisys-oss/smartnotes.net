@@ -122,13 +122,21 @@
                                     <ItemsControl ItemsSource="{Binding Items}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:TodoEntry">
-                                                <CheckBox Content="{Binding Text}"
-                                                          Foreground="#1A1A1A"
-                                                          FontSize="13"
-                                                          MinHeight="26"
-                                                          Margin="{Binding Level, Converter={x:Static app:IndentMargin.Instance}}"
-                                                          Command="{Binding $parent[Window].((vm:ManagerViewModel)DataContext).TickTodoCommand}"
-                                                          CommandParameter="{Binding}" />
+                                                <DockPanel Margin="{Binding Level, Converter={x:Static app:IndentMargin.Instance}}">
+                                                    <TextBlock x:Name="TodoDue"
+                                                               DockPanel.Dock="Right"
+                                                               Text="{Binding DueText}"
+                                                               Foreground="{Binding DueState, Converter={x:Static app:DueBrushes.Instance}}"
+                                                               FontSize="11"
+                                                               Margin="8,0,0,0"
+                                                               VerticalAlignment="Center" />
+                                                    <CheckBox Content="{Binding Text}"
+                                                              Foreground="#1A1A1A"
+                                                              FontSize="13"
+                                                              MinHeight="26"
+                                                              Command="{Binding $parent[Window].((vm:ManagerViewModel)DataContext).TickTodoCommand}"
+                                                              CommandParameter="{Binding}" />
+                                                </DockPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

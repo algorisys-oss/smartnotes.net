@@ -51,7 +51,7 @@ public class ManagerTodoWindowTests
 
     private async Task<(ManagerWindow Window, ManagerViewModel Manager)> OpenOnTodosAsync()
     {
-        var manager = new ManagerViewModel(_notes, _windows);
+        var manager = new ManagerViewModel(_notes, _windows, _clock);
         var window = new ManagerWindow();
         window.Bind(manager);
         window.Show();
@@ -131,5 +131,19 @@ public class ManagerTodoWindowTests
         {
             Application.Current!.RequestedThemeVariant = ThemeVariant.Default;
         }
+    }
+
+    [AvaloniaFact]
+    public async Task TodoList_ForATodoDueToday_SaysSoInTheTodayColour()
+    {
+        await SeedAsync("Week", "- [ ] rent @2026-09-17");
+
+        var (window, _) = await OpenOnTodosAsync();
+
+        var due = window.FindControl<ItemsControl>("TodoList")!.GetVisualDescendants()
+            .OfType<TextBlock>()
+            .Single(text => text.Name == "TodoDue");
+        Assert.Equal("Today", due.Text);
+        Assert.Equal(DueBrushes.For(DueState.Today), due.Foreground);
     }
 }

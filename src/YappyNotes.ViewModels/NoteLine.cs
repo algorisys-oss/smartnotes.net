@@ -14,11 +14,21 @@ namespace YappyNotes.ViewModels;
 /// </remarks>
 public sealed record NoteLine(MarkdownBlock Block, string Marker)
 {
+    /// <summary>The day this line was drawn on, which is what "overdue" is measured against.</summary>
+    public DateOnly Today { get; init; }
+
+    /// <summary>How soon a due date in this line is. A ticked item is never late.</summary>
+    public DueState DueStateOf(MarkdownRun run)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        return DueStates.Of(run.Due, Today, Block.IsDone);
+    }
+
     public const string ToDo = "☐ ";
     public const string Done = "☑ ";
     public const string Bullet = "• ";
 
-    public static NoteLine For(MarkdownBlock block)
+    public static NoteLine For(MarkdownBlock block, DateOnly today = default)
     {
         ArgumentNullException.ThrowIfNull(block);
 
@@ -29,7 +39,7 @@ public sealed record NoteLine(MarkdownBlock Block, string Marker)
             _ => string.Empty,
         };
 
-        return new NoteLine(block, marker);
+        return new NoteLine(block, marker) { Today = today };
     }
 
     /// <summary>Whether the character drawn at this index is the checklist box.</summary>
