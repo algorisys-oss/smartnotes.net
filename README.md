@@ -59,7 +59,7 @@ closed, and the repository contract answered twice.
 > is turned off, and starting it while it runs brings the running copy forward
 > rather than opening a second.
 >
-> 676 green tests. Start at [LOOP.md](LOOP.md).
+> 681 green tests. Start at [LOOP.md](LOOP.md).
 
 ## Documentation
 

@@ -308,4 +308,34 @@ public class NoteFormattingTests
         Assert.Equal("buy milk now", note.Content);
         Assert.Equal((4, 8), selection);
     }
+
+    /// <summary>
+    /// Reported from real use: in a new note, the first letter typed swapped the
+    /// editor for the formatted note and took the keyboard with it. An empty note
+    /// shows the editor because there is nothing to format, not because it is being
+    /// edited - so the first letter made it formatted. Typing into it is editing.
+    /// </summary>
+    [Fact]
+    public async Task Content_TypedIntoAnEmptyNote_KeepsTheEditor()
+    {
+        var note = await NoteSayingAsync(string.Empty);
+
+        note.Content = "S";
+
+        Assert.True(note.ShowsEditor);
+        Assert.True(note.IsEditing);
+    }
+
+    /// <summary>A to-do added to an empty note is not typing into its editor.</summary>
+    [Fact]
+    public async Task Content_AddedAsATodoToAnEmptyNote_StaysFormatted()
+    {
+        var note = await NoteSayingAsync(string.Empty);
+        note.StartTodoListCommand.Execute(null);
+        note.NewTodoText = "milk";
+
+        note.AddTodoCommand.Execute(null);
+
+        Assert.False(note.ShowsEditor);
+    }
 }

@@ -365,4 +365,26 @@ public class NoteTodoTests
 
         Assert.True(note.ShowsEditor);
     }
+
+    /// <summary>
+    /// A note of nothing but ticked to-dos is empty once cleared, and an empty note
+    /// shows the editor - which would hide the footer, and the Undo in it, at the one
+    /// moment Undo matters.
+    /// </summary>
+    [Fact]
+    public async Task ClearCompleted_OnANoteOfOnlyTickedTodos_StillOffersUndo()
+    {
+        var note = await NoteSayingAsync("- [x] bread\n- [x] milk");
+
+        note.ClearCompletedCommand.Execute(null);
+
+        Assert.Equal(string.Empty, note.Content);
+        Assert.False(note.ShowsEditor);
+        Assert.True(note.ShowsTodoFooter);
+
+        note.UndoClearCommand.Execute(null);
+
+        Assert.Equal("- [x] bread\n- [x] milk", note.Content);
+        Assert.False(note.IsEditing, "undoing a clear opened the Markdown editor");
+    }
 }

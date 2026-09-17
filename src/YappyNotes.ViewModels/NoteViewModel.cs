@@ -81,7 +81,21 @@ public sealed partial class NoteViewModel : ObservableObject
         get => _note.Content;
         set
         {
+            // An empty note shows the editor because there is nothing to format, not
+            // because it is being edited. A change arriving while that editor is the
+            // one showing is typing into it, and the first letter must not turn the
+            // note formatted and take the keyboard away - which it did.
+            var typedIntoEmptyEditor = ShowsEditor && !IsEditing && !string.IsNullOrEmpty(value);
+
             Set(_note.Content, value, v => _note.Content = v);
+
+            if (typedIntoEmptyEditor)
+            {
+                EditCaret = _note.Content.Length;
+                OnPropertyChanged(nameof(EditCaret));
+                SetEditing(true);
+            }
+
             ScanForLinks();
             Reparse();
         }
@@ -120,11 +134,18 @@ public sealed partial class NoteViewModel : ObservableObject
     /// type into.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Not while a to-do is being added: the new line is drawn in the formatted note,
     /// and an empty note showing the editor instead hid that line and kept the
     /// keyboard - the first letter typed became the note's text.
+    /// </para>
+    /// <para>
+    /// Nor straight after "Clear completed" has emptied a note of nothing but ticked
+    /// to-dos: the footer with its Undo is part of the formatted note, and would be
+    /// hidden at the one moment it is needed.
+    /// </para>
     /// </remarks>
-    public bool ShowsEditor => IsEditing || (string.IsNullOrWhiteSpace(_note.Content) && !IsAddingTodo);
+    public bool ShowsEditor => IsEditing || (string.IsNullOrWhiteSpace(_note.Content) && !IsAddingTodo && !CanUndoClear);
 
     /// <summary>Where the caret goes when the editor opens.</summary>
     public int EditCaret { get; private set; }
@@ -348,9 +369,11 @@ public sealed partial class NoteViewModel : ObservableObject
             return;
         }
 
-        var before = _lastClear!.Value.Before;
+        // The text first, the record after: while the note is still the cleared one,
+        // putting the text back is Undo, not somebody typing into an empty note.
+        Content = _lastClear!.Value.Before;
         _lastClear = null;
-        Content = before;
+        OnPropertyChanged(nameof(CanUndoClear));
     }
 
     private void SetAddingTodo(bool adding)
