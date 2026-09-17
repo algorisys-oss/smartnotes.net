@@ -364,4 +364,52 @@ public class NoteTimerWindowTests
 
         Assert.Empty(onTheBar);
     }
+
+    /// <summary>
+    /// The transport reads as one row of equal keys. Drawn from font glyphs, each
+    /// button took its glyph's own width and baseline - pause, restart, stop and
+    /// the settings dots came out four different sizes, reported from real use.
+    /// </summary>
+    /// <remarks>
+    /// This did not fail against that bug: the headless platform's stand-in font
+    /// measures every glyph alike. It holds the fixed size from here on;
+    /// <see cref="TimerBar_Icons_AreDrawnNotTyped"/> is the test that failed.
+    /// </remarks>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TimerBar_Buttons_AreAllTheSameSize(bool running)
+    {
+        var window = OpenWindow(withTimer: true);
+        if (running)
+        {
+            ((NoteViewModel)window.DataContext!).Timer!.StartCommand.Execute(null);
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        var sizes = new[] { running ? "TimerPause" : "TimerStart", "TimerRestart", "TimerReset", "TimerSettingsButton" }
+            .Select(name => (name, window.FindControl<Button>(name)!.Bounds.Size))
+            .ToList();
+
+        Assert.All(sizes, entry => Assert.True(entry.Size.Width > 0, $"{entry.name} has not been laid out"));
+        Assert.True(
+            sizes.Select(entry => entry.Size).Distinct().Count() == 1,
+            string.Join(", ", sizes.Select(entry => $"{entry.name} {entry.Size}")));
+    }
+
+    /// <summary>
+    /// Every icon on the bar is the same drawn shape at the same size, so no font -
+    /// and no platform's fallback for a missing glyph - decides how big one looks.
+    /// </summary>
+    [AvaloniaFact]
+    public void TimerBar_Icons_AreDrawnNotTyped()
+    {
+        var window = OpenWindow(withTimer: true);
+
+        foreach (var name in new[] { "TimerStart", "TimerPause", "TimerRestart", "TimerReset", "TimerSettingsButton" })
+        {
+            var button = window.FindControl<Button>(name)!;
+            Assert.True(button.Content is Avalonia.Controls.Shapes.Path, $"{name} shows {button.Content} rather than a drawn icon");
+        }
+    }
 }

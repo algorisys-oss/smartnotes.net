@@ -56,6 +56,29 @@
         <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#33000000" />
         </Style>
+
+        <!-- The timer's transport: one size of key, one size of icon. The icons are
+             drawn rather than typed, because a glyph brings its own width and
+             baseline - and on a platform whose font lacks it, a fallback font's -
+             so pause, restart, stop and the settings dots came out four sizes.
+             Each shape is drawn in the same 10 by 10 box and not stretched, so a
+             square and a triangle keep their relative weight. -->
+        <Style Selector="Button.transport">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.transport > Path">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="Stretch" Value="None" />
+            <Setter Property="Fill" Value="#333333" />
+        </Style>
+        <Style Selector="Button.transport:disabled > Path">
+            <Setter Property="Fill" Value="#80333333" />
+        </Style>
     </Window.Styles>
 
     <Border x:Name="NoteChrome" BorderThickness="1">
@@ -220,36 +243,40 @@
                             VerticalAlignment="Center">
 
                     <Button x:Name="TimerStart"
-                            Content="&#x25B6;"
+                            Classes="transport"
                             ToolTip.Tip="Start"
                             IsVisible="{Binding !IsRunning}"
-                            Command="{Binding StartCommand}"
-                            Padding="6,3" />
+                            Command="{Binding StartCommand}">
+                        <Path Data="M 2,0 L 10,5 L 2,10 Z" />
+                    </Button>
 
                     <Button x:Name="TimerPause"
-                            Content="&#x23F8;"
+                            Classes="transport"
                             ToolTip.Tip="Pause"
                             IsVisible="{Binding IsRunning}"
-                            Command="{Binding PauseCommand}"
-                            Padding="6,3" />
+                            Command="{Binding PauseCommand}">
+                        <Path Data="M 1.5,0 H 4 V 10 H 1.5 Z M 6,0 H 8.5 V 10 H 6 Z" />
+                    </Button>
 
                     <Button x:Name="TimerRestart"
-                            Content="&#x21BB;"
+                            Classes="transport"
                             ToolTip.Tip="Start again from the top"
-                            Command="{Binding RestartCommand}"
-                            Padding="6,3" />
+                            Command="{Binding RestartCommand}">
+                        <Path Data="M 5,1 A 4,4 0 1 1 1.54,3 L 2.84,3.75 A 2.5,2.5 0 1 0 5,2.5 Z M 4.2,-0.9 L 7.2,1.75 L 4.2,4.4 Z" />
+                    </Button>
 
                     <Button x:Name="TimerReset"
-                            Content="&#x23F9;"
+                            Classes="transport"
                             ToolTip.Tip="Stop and put it back to the top"
-                            Command="{Binding ResetCommand}"
-                            Padding="6,3" />
+                            Command="{Binding ResetCommand}">
+                        <Path Data="M 1,1 H 9 V 9 H 1 Z" />
+                    </Button>
 
                     <Button x:Name="TimerSettingsButton"
-                            Content="&#x2026;"
+                            Classes="transport"
                             ToolTip.Tip="Set the label, length and direction"
-                            IsEnabled="{Binding CanEdit}"
-                            Padding="6,3">
+                            IsEnabled="{Binding CanEdit}">
+                        <Path Data="M 0,5 A 1.2,1.2 0 1 0 2.4,5 A 1.2,1.2 0 1 0 0,5 Z M 3.8,5 A 1.2,1.2 0 1 0 6.2,5 A 1.2,1.2 0 1 0 3.8,5 Z M 7.6,5 A 1.2,1.2 0 1 0 10,5 A 1.2,1.2 0 1 0 7.6,5 Z" />
                         <Button.Flyout>
                             <Flyout Placement="BottomEdgeAlignedRight">
                                 <StackPanel x:Name="TimerSettings" Width="268" Spacing="10">
